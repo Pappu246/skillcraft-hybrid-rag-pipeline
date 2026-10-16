@@ -55,11 +55,13 @@ Keep secrets in a local `.env` file or environment variables. Never commit crede
 
 ## Interactive web demo
 
-Launch the local web interface:
+**Windows quick launch:** double-click `START_DEMO.bat` from the repository folder. It creates `.venv` if needed, installs missing dependencies, and starts the local demo.
+
+Or launch manually from PowerShell:
 
 ```powershell
-pip install -r requirements.txt
-streamlit run streamlit_app.py
+python -m pip install -r requirements.txt
+python -m streamlit run streamlit_app.py
 ```
 
 The app opens with an **original built-in Data Structures guide** so the demo works without uploading a document. Switch to **Upload your PDFs** to index text-based PDF files for that session (combined maximum 20 MB). Uploaded PDF bytes are written to a temporary directory only while text is extracted; the extracted chunks and index remain in the active Streamlit session. Do not upload confidential documents to a public hosted demo. Scanned PDFs need OCR before ingestion.
