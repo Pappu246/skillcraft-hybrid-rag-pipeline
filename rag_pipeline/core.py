@@ -217,19 +217,55 @@ class HybridIndex:
                    reranker_model=payload.get("reranker_model"))
 
 
-def retrieve_comparison(index: HybridIndex, question: str, *, top_k: int = 5) -> dict[str, Any]:
+def retrieve_comparison(
+    index: HybridIndex,
+    question: str,
+    *,
+    top_k: int = 5,
+    repeats: int = 3,
+) -> dict[str, Any]:
+    """Compare retrieval latency after one warm-up, reporting median timed latency.
+
+    This measures warmed retrieval latency within this process, not cold-start
+    latency, model-download time, or retrieval accuracy.
+    """
+    if top_k < 1:
+        raise ValueError("top_k must be positive")
+    if repeats < 1:
+        raise ValueError("repeats must be positive")
+
     methods = {
         "bm25": index.search_bm25,
         "dense": index.search_dense,
         "hybrid": index.search_hybrid,
     }
-    report: dict[str, Any] = {"question": question, "top_k": top_k, "methods": {}}
+
+    # Warm every method before collecting timings so first-use model/embedding
+    # initialization does not unfairly dominate only the dense and hybrid rows.
+    for method in methods.values():
+        method(question, top_k=top_k)
+
+    report: dict[str, Any] = {
+        "question": question,
+        "top_k": top_k,
+        "benchmark": {
+            "warmup_runs_per_method": 1,
+            "timed_runs_per_method": repeats,
+            "latency_statistic": "median",
+            "latency_scope": "warmed retrieval only; excludes cold-start initialization",
+        },
+        "methods": {},
+    }
     for name, method in methods.items():
-        started = time.perf_counter()
-        results = method(question, top_k=top_k)
-        elapsed_ms = (time.perf_counter() - started) * 1000
+        timings: list[float] = []
+        results: list[SearchResult] = []
+        for _ in range(repeats):
+            started = time.perf_counter()
+            results = method(question, top_k=top_k)
+            timings.append((time.perf_counter() - started) * 1000)
         report["methods"][name] = {
-            "latency_ms": round(elapsed_ms, 3),
+            "latency_ms": round(float(np.median(timings)), 3),
+            "latency_runs_ms": [round(value, 3) for value in timings],
             "results": [result.to_dict() for result in results],
         }
     return report
