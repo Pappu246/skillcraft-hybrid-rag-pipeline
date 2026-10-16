@@ -106,7 +106,7 @@ with st.sidebar:
         "3. Fuse ranks with Reciprocal Rank Fusion\n"
         "4. Return source and physical PDF page citations"
     )
-    st.caption("Dense retrieval downloads the embedding model on first use. The app does not need an LLM API key to compare retrieval.")
+    st.caption("Dense retrieval downloads the embedding model on first use. Retrieval comparison needs no LLM API key. If LLM settings are configured, your query and retrieved evidence are sent to that provider.")
 
 if source_mode == "Built-in sample guide":
     active_index = st.session_state.sample_index
