@@ -4,7 +4,7 @@
 
 A practical Retrieval-Augmented Generation (RAG) baseline that compares BM25 keyword retrieval, dense vector retrieval, and hybrid retrieval, optionally reranks candidates, and returns source/page citations with generated answers.
 
-> This is an initial implementation scaffold. Run the tests and evaluation on your own documents before describing performance as measured or production-ready.
+> This is an internship/demo baseline. Evaluation figures below are specific to the included labelled set and are not claims of production-grade accuracy.
 
 ## Features
 - PDF ingestion with page-level provenance
@@ -53,6 +53,21 @@ Optional OpenAI-compatible generation settings:
 
 Keep secrets in a local `.env` file or environment variables. Never commit credentials. The application reads environment variables; it does not automatically load `.env` unless you install and configure a dotenv loader.
 
+## Interactive web demo
+
+Launch the local web interface:
+
+```powershell
+pip install -r requirements.txt
+streamlit run streamlit_app.py
+```
+
+The app opens with an **original built-in Data Structures guide** so the demo works without uploading a document. Switch to **Upload your PDFs** to index text-based PDF files for that session (combined maximum 20 MB). Uploaded PDF bytes are written to a temporary directory only while text is extracted; the extracted chunks and index remain in the active Streamlit session. Do not upload confidential documents to a public hosted demo. Scanned PDFs need OCR before ingestion.
+
+The interface compares BM25, dense retrieval, and hybrid RRF with source filename and 1-based physical PDF page citations. The “Generate cited answer” action calls an OpenAI-compatible model only when `RAG_API_KEY`, `RAG_API_BASE_URL`, and `RAG_MODEL` are set. Without those settings, it deliberately labels the output as retrieved evidence context, not a generated answer.
+
+For a hosted demo, use a Python hosting service that supports Streamlit and the dependencies in `requirements.txt`. The first dense query downloads the Sentence-Transformers embedding model, so initial load can take longer than later queries.
+
 ## Architecture
 1. Extract PDF text page-by-page and retain filename/page provenance.
 2. Split text into overlapping chunks.
@@ -89,13 +104,13 @@ The report compares BM25, dense, and hybrid retrieval using page-level Recall@k,
 - Dense retrieval downloads a sentence-transformer model on first use.
 - The included local index is intended for a single-user internship demo, not concurrent production traffic.
 - Model answers can still be wrong; inspect the cited evidence.
-- Retrieval-quality scores are only meaningful when the question-to-page labels are manually verified and representative; the repo does not ship a ground-truth dataset.
+- The included labelled dataset is a small, document-specific evaluation baseline—not independent ground truth. Retrieval scores are meaningful only when labels are verified and questions are representative.
 
 ## Project deliverables
 - Source code and tests
 - BM25 vs Dense vs Hybrid retrieval comparison
 - Citation-bearing grounded context and optional generated answer
-- Optional UI can be added after the retrieval pipeline is validated
+- Interactive Streamlit demo for uploaded PDFs and an original built-in sample guide
 
 ## License
 No license has been selected yet. All rights remain with the repository owner unless a license is added.
