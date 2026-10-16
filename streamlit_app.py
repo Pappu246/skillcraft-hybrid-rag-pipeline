@@ -1,6 +1,7 @@
 """Interactive web demo for SkillCraft Hybrid RAG Pipeline."""
 from __future__ import annotations
 
+import html
 import os
 
 import pandas as pd
@@ -174,9 +175,9 @@ if report_is_current:
             for item in results:
                 st.markdown(
                     '<div class="result-card">'
-                    f'<div class="citation">{item["citation"]}</div>'
+                    f'<div class="citation">{html.escape(item["citation"])}</div>'
                     f'<div class="small-note">Rank #{item["rank"]} · {item["method"]} · raw score {item["score"]:.4f}</div>'
-                    f'<p>{item["text"]}</p>'
+                    f'<p>{html.escape(item["text"])}</p>'
                     '</div>',
                     unsafe_allow_html=True,
                 )
