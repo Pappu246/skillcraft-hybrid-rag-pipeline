@@ -81,11 +81,11 @@
   },
   {
     "id": "ds-09",
-    "question": "What factors should guide the choice of a data structure, such as operation frequency, memory use, and input size?",
+    "question": "What factors does the module list for choosing an appropriate data structure, including data amount/type, operation frequency, ordering, memory, and expected input size?",
     "relevant_pages": [
       {
         "source": "Module1.pdf",
-        "page": 12
+        "page": 11
       }
     ]
   },
