@@ -13,3 +13,9 @@ def test_streamlit_demo_renders_user_friendly_ui_without_llm_credentials():
     assert "Ask a question" in rendered_markdown
     assert "Best matching passage" not in rendered_markdown
     assert len(app.text_input) >= 1
+
+
+def test_streamlit_config_disables_transformers_watcher_traceback_noise():
+    root = Path(__file__).resolve().parents[1]
+    config = (root / ".streamlit" / "config.toml").read_text(encoding="utf-8")
+    assert 'fileWatcherType = "none"' in config

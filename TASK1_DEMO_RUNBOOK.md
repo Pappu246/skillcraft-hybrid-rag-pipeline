@@ -30,7 +30,7 @@ python -m pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-The first dense query downloads the Sentence-Transformers model and may take longer. Retrieval comparison can run without `RAG_API_KEY`, `RAG_API_BASE_URL`, or `RAG_MODEL`. In that configuration, the answer button returns clearly labelled source context, not an AI-generated answer.
+The first dense query downloads the Sentence-Transformers model and may take longer. The demo disables Streamlit's file watcher to prevent noisy Transformers-module tracebacks; restart the app after pulling updates. Retrieval comparison can run without `RAG_API_KEY`, `RAG_API_BASE_URL`, or `RAG_MODEL`. In that configuration, the answer button returns clearly labelled source context, not an AI-generated answer.
 
 ## Upload and privacy checks
 
