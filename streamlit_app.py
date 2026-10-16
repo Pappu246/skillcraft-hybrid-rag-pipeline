@@ -182,11 +182,11 @@ if report_is_current:
                     unsafe_allow_html=True,
                 )
 
-    hybrid_chunks = active_index.search_hybrid(st.session_state.retrieval_question, top_k=top_k)
     has_generation = all(os.getenv(key) for key in ("RAG_API_KEY", "RAG_API_BASE_URL", "RAG_MODEL"))
     button_label = "Generate cited answer with configured LLM" if has_generation else "Show grounded evidence context"
     if st.button(button_label, use_container_width=True):
         try:
+            hybrid_chunks = active_index.search_hybrid(st.session_state.retrieval_question, top_k=top_k)
             answer = generate_answer(st.session_state.retrieval_question, hybrid_chunks)
             st.markdown("### Answer / evidence context")
             if has_generation:
