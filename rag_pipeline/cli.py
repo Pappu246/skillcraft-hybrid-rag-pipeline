@@ -34,11 +34,12 @@ def compare(
     question: str = typer.Option(..., "--question", "-q", help="Question to retrieve evidence for"),
     index_dir: Path = typer.Option(Path(".rag_index"), "--index-dir"),
     top_k: int = typer.Option(5, min=1, max=20),
+    repeats: int = typer.Option(3, min=1, max=20, help="Timed runs per method; median latency is reported"),
     output: Path | None = typer.Option(None, help="Optional JSON output path"),
 ) -> None:
     """Compare BM25, dense, and hybrid retrieval for one question."""
     index = HybridIndex.load(index_dir)
-    report = retrieve_comparison(index, question, top_k=top_k)
+    report = retrieve_comparison(index, question, top_k=top_k, repeats=repeats)
     table = Table(title="Retrieval comparison (latency is not an accuracy metric)")
     table.add_column("Method")
     table.add_column("Latency (ms)", justify="right")
