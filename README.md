@@ -72,27 +72,17 @@ The comparison command reports ranked source chunks and warmed retrieval latency
 
 ### Labelled retrieval-quality evaluation
 
-Latency is not quality. To compare retrieval relevance, create a JSON **array** of questions whose correct source pages have been checked against your own PDF. The `source` value must match the indexed PDF filename exactly, and `page` is 1-based.
+The repository includes a **34-question, page-labelled evaluation set** for the `Module1.pdf` Data Structures handout at `evaluation_datasets/module1.json`. It covers data structures and ADTs, algorithm properties and analysis, asymptotic notation, arrays and address calculations, and linear/binary search.
 
-Example schema only (the question and page below are placeholders; verify and replace them against your document before evaluating):
-```json
-[
-  {
-    "id": "q1",
-    "question": "Replace with a question answerable from your PDF",
-    "relevant_pages": [
-      { "source": "Module1.pdf", "page": 1 }
-    ]
-  }
-]
-```
+**Important label convention:** the dataset uses the physical PDF page number counted from 1, matching the page number emitted by `pypdf.PdfReader` during ingestion. It does not use the printed footer page number (the cover and contents pages make these differ). The source filename in the label is exactly `Module1.pdf`, so your index must have been built from that PDF under that filename.
 
-Save your labelled dataset as `data/evaluation.json`, then run:
+Evaluate your local index:
 ```powershell
-rag-pipeline evaluate --dataset data/evaluation.json --index-dir .rag_index --top-k 5 --output reports/evaluation.json
+pytest -q
+rag-pipeline evaluate --dataset evaluation_datasets/module1.json --index-dir .rag_index --top-k 5 --output reports/module1_evaluation.json
 ```
 
-The evaluation compares BM25, dense, and hybrid retrieval using **page-level Recall@k, MRR@k, and nDCG@k**, with macro averages across questions and per-question details in the JSON report. Chunk results from the same source page are collapsed to one page rank. The evaluator requests extra candidate chunks to reduce duplicate-page crowding, but results still depend on the labelled questions and available candidates. Use a representative held-out set (for a small demo, start with 20–30 carefully labelled questions if the document supports them), inspect all labels, and do not present an illustrative or tiny sample as proof of general accuracy. These metrics evaluate retrieval, not generated-answer correctness.
+The report compares BM25, dense, and hybrid retrieval using page-level Recall@k, MRR@k, and nDCG@k, with macro averages across questions and per-question results in JSON. Multiple chunks from the same page collapse to a single page rank. The label set is a useful document-specific evaluation baseline, not an independent benchmark or proof of general performance. Before using it for a formal claim, review the page labels and extend it with representative questions and all materially relevant pages from your own document/version. These metrics measure page retrieval, not answer-generation correctness.
 
 ## Current limitations
 - PDF extraction quality depends on whether the PDF contains selectable text; scanned PDFs need OCR.
