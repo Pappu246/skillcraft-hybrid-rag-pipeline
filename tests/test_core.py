@@ -97,3 +97,93 @@ def test_comparison_rejects_invalid_repeat_count():
         assert "repeats must be positive" in str(exc)
     else:
         raise AssertionError("Expected ValueError")
+
+
+
+def test_page_level_evaluation_scores_rankings_and_deduplicates_pages():
+    from types import SimpleNamespace
+    from rag_pipeline.core import Chunk, SearchResult
+    from rag_pipeline.evaluation import evaluate_retrieval_dataset
+
+    def result(chunk_id, source, page, rank, method):
+        chunk = Chunk(chunk_id, "text", source, page, rank - 1)
+        return SearchResult(chunk, 1.0, rank, method)
+
+    index = SimpleNamespace(
+        search_bm25=lambda question, *, top_k: [
+            result("p2a", "Module1.pdf", 2, 1, "bm25"),
+            result("p2b", "Module1.pdf", 2, 2, "bm25"),
+            result("p1", "Module1.pdf", 1, 3, "bm25"),
+            result("p3", "Module1.pdf", 3, 4, "bm25"),
+        ],
+        search_dense=lambda question, *, top_k: [
+            result("p3", "Module1.pdf", 3, 1, "dense"),
+            result("p1", "Module1.pdf", 1, 2, "dense"),
+            result("p2", "Module1.pdf", 2, 3, "dense"),
+        ],
+        search_hybrid=lambda question, *, top_k, candidate_k: [
+            result("p2", "Module1.pdf", 2, 1, "hybrid"),
+            result("p3", "Module1.pdf", 3, 2, "hybrid"),
+            result("p1", "Module1.pdf", 1, 3, "hybrid"),
+        ],
+    )
+    dataset = [{
+        "id": "q1",
+        "question": "What is covered?",
+        "relevant_pages": [
+            {"source": "Module1.pdf", "page": 1},
+            {"source": "Module1.pdf", "page": 3},
+        ],
+    }]
+
+    report = evaluate_retrieval_dataset(index, dataset, top_k=2)
+
+    assert report["questions"] == 1
+    assert report["evaluation_unit"] == "unique source filename + 1-based page"
+    assert report["metrics"]["bm25"]["recall@2"] == 0.5
+    assert report["metrics"]["bm25"]["mrr@2"] == 0.5
+    assert report["metrics"]["bm25"]["ndcg@2"] == 0.386853
+    assert report["metrics"]["bm25"]["per_question"][0]["retrieved_pages"] == [
+        {"source": "Module1.pdf", "page": 2},
+        {"source": "Module1.pdf", "page": 1},
+    ]
+    assert report["metrics"]["dense"]["recall@2"] == 1.0
+    assert report["metrics"]["dense"]["mrr@2"] == 1.0
+    assert report["metrics"]["dense"]["ndcg@2"] == 1.0
+
+
+def test_page_level_evaluation_rejects_empty_or_invalid_labels():
+    from types import SimpleNamespace
+    from rag_pipeline.evaluation import evaluate_retrieval_dataset
+
+    index = SimpleNamespace()
+    try:
+        evaluate_retrieval_dataset(index, [], top_k=3)
+    except ValueError as exc:
+        assert "non-empty JSON array" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
+
+    try:
+        evaluate_retrieval_dataset(
+            index,
+            [{"question": "Question", "relevant_pages": [{"source": "a.pdf", "page": 0}]}],
+            top_k=3,
+        )
+    except ValueError as exc:
+        assert "positive integer page" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
+
+
+def test_page_level_evaluation_validates_k():
+    from types import SimpleNamespace
+    from rag_pipeline.evaluation import evaluate_retrieval_dataset
+
+    dataset = [{"question": "Question", "relevant_pages": [{"source": "a.pdf", "page": 1}]}]
+    try:
+        evaluate_retrieval_dataset(SimpleNamespace(), dataset, top_k=0)
+    except ValueError as exc:
+        assert "top_k must be a positive integer" in str(exc)
+    else:
+        raise AssertionError("Expected ValueError")
