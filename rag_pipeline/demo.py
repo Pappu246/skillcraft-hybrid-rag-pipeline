@@ -13,7 +13,7 @@ from typing import Any
 from .core import Chunk, HybridIndex, SearchResult, ingest_pdfs
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
-SAMPLE_SOURCE = "Data_Structures_Demo_Guide.pdf"
+SAMPLE_SOURCE = "Built-in Data Structures Guide"
 
 _SAMPLE_PAGES = [
     "Data are raw facts, observations, or measurements. Information is data that has been processed, organised, or interpreted so it is meaningful for a particular purpose. A data structure is a way to organise and store data so operations such as search, insertion, deletion, and traversal can be performed effectively. An abstract data type (ADT) describes the behaviour and operations of a type without requiring a particular implementation.",
