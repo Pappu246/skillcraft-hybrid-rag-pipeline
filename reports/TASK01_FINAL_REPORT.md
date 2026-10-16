@@ -67,14 +67,17 @@ Open `http://127.0.0.1:8501` on that same computer. Keep the terminal window ope
 
 ## 8. Deployment status
 
-The repository includes the Streamlit entrypoint, dependency list, `.streamlit/config.toml`, Windows launcher, Dockerfile, health check, and deployment runbook. **A public hosted URL has not been verified as of this report date.** The connected Vercel account had no SkillCraft project, and this long-running Streamlit/WebSocket app is not being represented as deployed on Vercel. A public Streamlit Community Cloud deployment still requires an authorized account action to create the app from this repository using branch `main` and entrypoint `streamlit_app.py`.
+**The application is deployed to Vercel and the hosted service health checks pass.**
 
-Deployment acceptance checks:
-1. Confirm the hosted build finishes successfully.
-2. Open the hosted URL in a private/incognito browser.
-3. Run at least two questions (binary search and hash-table collisions).
-4. Verify each response includes a meaningful evidence passage and source/page citation.
-5. Record the final live URL only after those checks pass.
+- Public URL: https://skillcraft-hybrid-rag-pipeline-git-main-pappu246s-projects.vercel.app/
+- Vercel deployment: `dpl_BWZNaEMzMhjRvFEdKreVD1r6kf49` (state: `READY`)
+- Source commit: `b71e7f4ac418cf8af365750fd95d479ed6a3e86f` on `main`
+- Root page: HTTP 200 OK; returns the Streamlit application shell.
+- Health endpoint: `/_stcore/health` returned HTTP 200 with body `ok`.
+- Runtime logs: no error/fatal entries found in the checked 15-minute window.
+- Container optimization: Vercel uses CPU-only PyTorch `2.9.1+cpu`; the first attempt using the default CUDA dependency set was canceled to avoid an unnecessarily large image.
+
+The deployment and service health have been checked remotely. **A live interactive browser query has not been executed by this report's verifier**; before recording the demo, open the public URL and run both `How does binary search reduce search time?` and `How does a hash table handle collisions?`, confirming that the passages and source/page citations appear.
 
 ## 9. Limitations
 
@@ -87,4 +90,4 @@ Deployment acceptance checks:
 
 ## 10. Conclusion
 
-Task 01 includes hybrid retrieval methods, page-level evidence citations, a guided Streamlit interface, a small recorded evaluation, automated CI, and hosting configuration. The UI simplification and terminal-noise fix have been merged into `main`. The remaining release gate is to create and validate a public hosted deployment, then capture screenshots or a short demo recording for the internship submission. Project claims should remain limited to the verified test results and document-specific retrieval measurements above.
+Task 01 includes hybrid retrieval methods, page-level evidence citations, a guided Streamlit interface, a small recorded evaluation, automated CI, and a verified public Vercel deployment. The UI simplification and terminal-noise fix have been merged into `main`. The public root and health endpoint return success; the remaining verification is to run interactive browser queries and capture screenshots or a short demo recording for the internship submission. Project claims should remain limited to the verified test results and document-specific retrieval measurements above.
