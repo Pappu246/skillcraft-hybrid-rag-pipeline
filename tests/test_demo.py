@@ -55,3 +55,14 @@ def test_uploaded_payload_size_is_limited(tmp_path):
 def test_empty_upload_list_is_rejected(tmp_path):
     with pytest.raises(ValueError, match="at least one PDF"):
         save_uploaded_pdfs([], tmp_path)
+
+def test_sample_corpus_bm25_retrieval_cites_the_relevant_page():
+    from rag_pipeline.demo import build_sample_index
+
+    index = build_sample_index()
+    results = index.search_bm25("How does binary search reduce search time?", top_k=3)
+
+    assert results
+    assert results[0].chunk.page == 4
+    assert results[0].chunk.source == SAMPLE_SOURCE
+    assert results[0].chunk.citation == f"[{SAMPLE_SOURCE}, p. 4]"
