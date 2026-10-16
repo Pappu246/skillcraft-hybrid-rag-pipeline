@@ -108,6 +108,10 @@ The report compares BM25, dense, and hybrid retrieval using page-level Recall@k,
 - Model answers can still be wrong; inspect the cited evidence.
 - The included labelled dataset is a small, document-specific evaluation baseline—not independent ground truth. Retrieval scores are meaningful only when labels are verified and questions are representative.
 
+## Final project report
+
+The Task 01 report covering architecture, user interface, measured retrieval evaluation, test verification, limitations, and deployment status is available at [`reports/TASK01_FINAL_REPORT.md`](reports/TASK01_FINAL_REPORT.md).
+
 ## Project deliverables
 - Source code and tests
 - BM25 vs Dense vs Hybrid retrieval comparison
