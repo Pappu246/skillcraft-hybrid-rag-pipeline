@@ -10,6 +10,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from .core import HybridIndex, format_context, generate_answer, ingest_pdfs, retrieve_comparison
+from .evaluation import evaluate_retrieval_dataset
 
 app = typer.Typer(help="Hybrid RAG pipeline with source citations")
 console = Console()
@@ -52,6 +53,44 @@ def compare(
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
         console.print(f"Saved report: {output}")
+
+
+
+@app.command()
+def evaluate(
+    dataset: Path = typer.Option(..., "--dataset", exists=True, dir_okay=False, readable=True,
+                                help="JSON array of labelled questions and relevant source pages"),
+    index_dir: Path = typer.Option(Path(".rag_index"), "--index-dir"),
+    top_k: int = typer.Option(5, min=1, max=20, help="Number of unique source pages to evaluate"),
+    output: Path | None = typer.Option(None, help="Optional JSON output path"),
+) -> None:
+    """Evaluate BM25, dense, and hybrid retrieval against manually labelled source pages."""
+    try:
+        examples = json.loads(dataset.read_text(encoding="utf-8"))
+        index = HybridIndex.load(index_dir)
+        report = evaluate_retrieval_dataset(index, examples, top_k=top_k)
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
+        raise typer.BadParameter(str(exc)) from exc
+
+    table = Table(title=f"Page retrieval quality (macro average, k={top_k})")
+    table.add_column("Method")
+    table.add_column(f"Recall@{top_k}", justify="right")
+    table.add_column(f"MRR@{top_k}", justify="right")
+    table.add_column(f"nDCG@{top_k}", justify="right")
+    for name, details in report["metrics"].items():
+        table.add_row(
+            name,
+            f'{details[f"recall@{top_k}"]:.3f}',
+            f'{details[f"mrr@{top_k}"]:.3f}',
+            f'{details[f"ndcg@{top_k}"]:.3f}',
+        )
+    console.print(table)
+    console.print(f"Evaluated {report['questions']} manually labelled questions.")
+    console.print("Metrics measure page retrieval quality, not answer-generation accuracy.")
+    if output:
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+        console.print(f"Saved evaluation report: {output}")
 
 
 @app.command()
