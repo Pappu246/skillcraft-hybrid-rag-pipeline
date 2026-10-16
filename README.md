@@ -36,9 +36,9 @@ Put one or more PDF files in `data/documents/`, then index them:
 rag-pipeline ingest --input data/documents --index-dir .rag_index
 ```
 
-Compare retrieval strategies:
+Compare retrieval strategies (three timed runs by default; use `--repeats` to change that):
 ```powershell
-rag-pipeline compare --index-dir .rag_index --question "What are the main findings?"
+rag-pipeline compare --index-dir .rag_index --question "What are the main findings?" --repeats 3 --output reports/comparison.json
 ```
 
 Ask a question (generation is optional; without API settings the tool returns grounded retrieved context):
@@ -68,14 +68,38 @@ Run:
 pytest -q
 rag-pipeline compare --index-dir .rag_index --question "Your evaluation question"
 ```
-The comparison command reports retrieval latency and ranked source chunks. This is a diagnostic comparison, **not** an accuracy score. For defensible evaluation, create a labelled question-to-source dataset and measure Recall@k, MRR and nDCG on held-out questions.
+The comparison command reports ranked source chunks and warmed retrieval latency. It performs one warm-up per method, then three timed runs by default and reports the median plus each individual timing. This reduces first-use initialization bias, but it is **not** a cold-start benchmark and does not measure retrieval accuracy.
+
+### Labelled retrieval-quality evaluation
+
+Latency is not quality. To compare retrieval relevance, create a JSON **array** of questions whose correct source pages have been checked against your own PDF. The `source` value must match the indexed PDF filename exactly, and `page` is 1-based.
+
+Example schema only (the question and page below are placeholders; verify and replace them against your document before evaluating):
+```json
+[
+  {
+    "id": "q1",
+    "question": "Replace with a question answerable from your PDF",
+    "relevant_pages": [
+      { "source": "Module1.pdf", "page": 1 }
+    ]
+  }
+]
+```
+
+Save your labelled dataset as `data/evaluation.json`, then run:
+```powershell
+rag-pipeline evaluate --dataset data/evaluation.json --index-dir .rag_index --top-k 5 --output reports/evaluation.json
+```
+
+The evaluation compares BM25, dense, and hybrid retrieval using **page-level Recall@k, MRR@k, and nDCG@k**, with macro averages across questions and per-question details in the JSON report. Chunk results from the same source page are collapsed to one page rank. The evaluator requests extra candidate chunks to reduce duplicate-page crowding, but results still depend on the labelled questions and available candidates. Use a representative held-out set (for a small demo, start with 20–30 carefully labelled questions if the document supports them), inspect all labels, and do not present an illustrative or tiny sample as proof of general accuracy. These metrics evaluate retrieval, not generated-answer correctness.
 
 ## Current limitations
 - PDF extraction quality depends on whether the PDF contains selectable text; scanned PDFs need OCR.
 - Dense retrieval downloads a sentence-transformer model on first use.
 - The included local index is intended for a single-user internship demo, not concurrent production traffic.
 - Model answers can still be wrong; inspect the cited evidence.
-- No benchmark claims are made until you run a reproducible evaluation on a documented dataset.
+- Retrieval-quality scores are only meaningful when the question-to-page labels are manually verified and representative; the repo does not ship a ground-truth dataset.
 
 ## Project deliverables
 - Source code and tests
