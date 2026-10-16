@@ -20,6 +20,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0.0"]
+demo = ["streamlit>=1.40.0", "pandas>=2.0.0"]
 
 [project.scripts]
 rag-pipeline = "rag_pipeline.cli:app"
