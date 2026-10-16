@@ -68,7 +68,9 @@ Run:
 pytest -q
 rag-pipeline compare --index-dir .rag_index --question "Your evaluation question"
 ```
-The comparison command reports retrieval latency and ranked source chunks. This is a diagnostic comparison, **not** an accuracy score. For defensible evaluation, create a labelled question-to-source dataset and measure Recall@k, MRR and nDCG on held-out questions.
+The comparison command reports ranked source chunks and warmed retrieval latency. It performs one warm-up per method, then three timed runs by default and reports the median plus each individual timing. This reduces first-use initialization bias, but it is **not** a cold-start benchmark and does not measure retrieval accuracy.
+
+For defensible quality evaluation, create a labelled question-to-relevant-source dataset from the supplied documents and measure Recall@k, MRR and nDCG on held-out questions. Inspect the cited page/chunk text to verify labels. Do not describe one retrieval method as more accurate based only on latency or a single question.
 
 ## Current limitations
 - PDF extraction quality depends on whether the PDF contains selectable text; scanned PDFs need OCR.
