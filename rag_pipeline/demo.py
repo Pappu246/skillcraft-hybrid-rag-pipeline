@@ -10,7 +10,7 @@ from pathlib import Path, PurePosixPath
 import tempfile
 from typing import Any
 
-from .core import Chunk, HybridIndex, SearchResult, ingest_pdfs
+from .core import Chunk, HybridIndex, ingest_pdfs
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 SAMPLE_SOURCE = "Built-in Data Structures Guide"
