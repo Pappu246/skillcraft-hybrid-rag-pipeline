@@ -71,7 +71,6 @@ with st.sidebar:
             "Select PDF files",
             type=["pdf"],
             accept_multiple_files=True,
-            max_upload_size=20,
             help="Select text-based PDFs, combined size up to 20 MB. Scanned PDFs need OCR first.",
         )
         if st.button("Build index from PDFs", type="primary", use_container_width=True):
