@@ -5,18 +5,18 @@ Use this runbook to demonstrate the actual Hybrid RAG retrieval pipeline. This i
 ## What the audience should see
 
 1. The app starts with an original built-in Data Structures guide; no document upload or model API key is required.
-2. Ask a natural-language question.
+2. Choose one of the plain-language example questions or type your own question.
 3. Compare the same question across BM25 keyword retrieval, dense semantic retrieval, and Hybrid RRF.
-4. Open the result tabs and show the retrieved evidence excerpt, rank, method, and source/page citation.
+4. Show the top matching passage first, explain its source/page citation, then expand the comparison section to show keyword, meaning, and combined search.
 5. Switch to **Upload your PDFs**, upload a small non-confidential, text-based PDF, build its index, ask a question grounded in that PDF, and show the page citations.
 6. Show the recorded 34-question Module1.pdf retrieval table, clearly describing it as document-specific page-retrieval metrics, not answer-generation accuracy.
 
 ## Suggested 60-second demo
 
 - **0–8 s:** Show the title and explain: "This project compares keyword, semantic, and hybrid retrieval for document-grounded search."
-- **8–20 s:** Keep the built-in guide selected and ask: `How does binary search reduce search time?`
-- **20–38 s:** Show Hybrid, Dense, and BM25 tabs; point at the citation and evidence text.
-- **38–50 s:** Show a second question: `How does a hash table handle collisions?` Then show its source/page provenance.
+- **8–20 s:** Keep the sample guide selected, click **Binary search** in the left panel, and select **Find relevant passages**.
+- **20–38 s:** Read the **Best matching passage** and point out the source/page citation. Expand **Compare how the three search methods performed**.
+- **38–50 s:** Click **Hash tables**, run the search, and show the new passage and citation.
 - **50–60 s:** Open the recorded evaluation table and state the exact scope: 34 manually labelled questions from one Data Structures handout; Recall@5/MRR@5/nDCG@5 evaluate page retrieval, not answer correctness.
 
 If doing a longer demo, also show the PDF upload/index/query flow. Use a public, non-confidential PDF only.
