@@ -45,19 +45,18 @@
 
 ## Deployment / current verification (updated 2026-10-17)
 
-The current production app is deployed from `main` at commit `933d709586015e18fd2f0eef9975ed165caae2e5`.
+The production application code includes the merged fixes and UI additions through main commit `48e545f75227c77a3432f31553b3eef1bf840eb0`.
 
-- Pull request [#9 — Harden PDF ingestion and hybrid retrieval](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9) was merged on 2026-10-17 as commit `b4371a8e3fe4bf227c6ba17014c3bbf8753e26dc`.
-- Pull request [#10 — Add evidence export and one-click search reset](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10) was merged as commit `933d709586015e18fd2f0eef9975ed165caae2e5`.
-- Main-branch GitHub Actions run [#39049422723](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39049422723) passed on that commit.
-- Production Vercel deployment `dpl_A1KQwagcKrBjiqY7NMXkhky1gPHd` is `READY`/production. Canonical aliases include https://skillcraft-hybrid-rag-pipeline.vercel.app/ and https://skillcraft-hybrid-rag-pipeline-git-main-pappu246s-projects.vercel.app/.
-- At verification time, the canonical root returned HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
-- The last 30-minute filtered runtime-log query returned no error/fatal entries. This is not proof that every runtime path is error-free.
-- Streamlit AppTest exercises the initial UI, cited BM25 fallback, evidence-download control, and clear-results behavior. A full real-browser end-to-end query on the production URL was **not** run from this environment; HTTP health alone must not be represented as full interactive verification.
-- The latest recorded evaluation still uses historical Module 1 metrics. The matching `Module1.pdf` is absent, so no post-change before/after metric claim is made.
-
-The next UX follow-up adds session-only recent search history on a separate feature branch. It is not part of the currently deployed production commit until that follow-up passes CI, preview checks, review, and merge.
+- Pull request [#9 — Harden PDF ingestion and hybrid retrieval](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9) was merged as `b4371a8e3fe4bf227c6ba17014c3bbf8753e26dc`.
+- Pull request [#10 — Add evidence export and one-click search reset](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10) was merged as `933d709586015e18fd2f0eef9975ed165caae2e5`.
+- Pull request [#11 — Add session-only recent search history](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/11) was merged as `48e545f75227c77a3432f31553b3eef1bf840eb0`.
+- Main-branch GitHub Actions run [#39050135692](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39050135692) passed on the latest application commit.
+- Vercel production deployment `dpl_6C7P4mgoy5tcrosa1K7vG9E2iL7f` is `READY`. Its aliases include https://skillcraft-hybrid-rag-pipeline.vercel.app/ and https://skillcraft-hybrid-rag-pipeline-git-main-pappu246s-projects.vercel.app/.
+- The canonical root returned HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
+- The checked 30-minute filtered runtime-log query returned no error/fatal entries. This does not prove every user path is error-free.
+- Streamlit AppTest covers initial rendering, a cited BM25 fallback, the evidence-download control, recent-query restoration, and clear-results behavior. The Vercel PR preview is protected by SSO in this verifier, so a real browser/WebSocket flow against the preview or production RAG queries was **not** executed here. HTTP health must not be presented as full interactive verification.
+- The matching `Module1.pdf` is absent. The 34-question set and its metrics remain a historical retrieval baseline, not a post-change before/after result or answer-factuality score.
 
 ## Rollback
 
-The current production deployment `dpl_A1KQwagcKrBjiqY7NMXkhky1gPHd` corresponds to main commit `933d709586015e18fd2f0eef9975ed165caae2e5`. If a later release causes a regression, revert the responsible merged commit and redeploy the previously known-good main deployment `dpl_C3ZnErBEHSLV38VaXQ69miw3Ykjq`. Keep source history and the deployment record; do not force-push or reset main.
+The current production deployment is `dpl_6C7P4mgoy5tcrosa1K7vG9E2iL7f`, built from application commit `48e545f75227c77a3432f31553b3eef1bf840eb0`. The previous known-good production deployment was `dpl_A1KQwagcKrBjiqY7NMXkhky1gPHd` from commit `933d709586015e18fd2f0eef9975ed165caae2e5`. If a regression is discovered, revert the responsible merged commit and redeploy the previous known-good application release. Preserve history; do not force-push or reset main.
