@@ -19,6 +19,8 @@ A practical Retrieval-Augmented Generation (RAG) baseline that compares BM25 key
 - Page-level duplicate suppression, deterministic ranking, and explicit empty-query/no-match behavior
 - Clear method-level fallbacks when semantic model loading fails, without mislabelling keyword results as hybrid
 - Optional answer-generation safeguards: untrusted evidence boundary, source-citation validation, and actionable provider errors
+- Session-only recent search history (last five questions), with safe query restoration
+- Downloadable Markdown evidence report and one-click clear-results control
 
 ## Requirements
 - Python 3.10+
