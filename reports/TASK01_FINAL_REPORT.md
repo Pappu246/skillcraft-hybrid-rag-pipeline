@@ -94,15 +94,15 @@ Task 01 includes hybrid retrieval methods, page-level evidence citations, a guid
 
 ## 11. Follow-up engineering audit and release status — 17 October 2026
 
-The detailed root causes and regression evidence are in [`reports/ENGINEERING_AUDIT.md`](ENGINEERING_AUDIT.md).
+Detailed root causes, fixes, and verification limits are documented in [`reports/ENGINEERING_AUDIT.md`](ENGINEERING_AUDIT.md).
 
-- **Implementation:** [PR #9](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9) hardened PDF ingestion and hybrid retrieval, including method-level fallback, ranking and citation validation. It was merged as `b4371a8`.
-- **User-facing improvements:** [PR #10](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10) added a downloadable Markdown evidence report and one-click clear-search control. It was merged as `933d709`.
-- **Latest main CI:** [run #39049422723](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39049422723) passed on commit `933d709586015e18fd2f0eef9975ed165caae2e5`.
-- **Production deployment:** Vercel deployment `dpl_A1KQwagcKrBjiqY7NMXkhky1gPHd` reached `READY` for production. Canonical URL: https://skillcraft-hybrid-rag-pipeline.vercel.app/.
-- **Live HTTP health:** the canonical root returned HTTP 200; `/_stcore/health` returned HTTP 200 with body `ok`. No error/fatal runtime entries appeared in the checked 30-minute filtered log window.
-- **Interactive-verification limit:** this environment did not execute a full real-browser/WebSocket flow against production. AppTest covers the user-facing export/reset controls and a cited keyword fallback; health checks are not evidence that every browser interaction works.
-- **Evaluation:** no new Module 1 metrics are claimed because the matching `Module1.pdf` is absent. The stored 34-question results remain historical retrieval metrics, not generated-answer factuality results.
-- **Current worktree/next increment:** a separate recent-search-history UI change is under test on a feature branch; it is not in the deployed release until its own gates pass.
+- **PDF/retrieval hardening:** [PR #9](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9) merged as `b4371a8`.
+- **Evidence export and clear-search control:** [PR #10](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10) merged as `933d709`.
+- **Recent search history:** [PR #11](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/11) merged as `48e545f`. The last five searches are retained only for the current Streamlit session; a prior query is restored but not automatically re-executed.
+- **Main-branch CI:** [run #39050135692](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39050135692) passed on application commit `48e545f75227c77a3432f31553b3eef1bf840eb0`.
+- **Production:** Vercel deployment `dpl_6C7P4mgoy5tcrosa1K7vG9E2iL7f` is `READY` with the canonical URL https://skillcraft-hybrid-rag-pipeline.vercel.app/.
+- **HTTP/health checks:** canonical root returned HTTP 200; `/_stcore/health` returned HTTP 200 with body `ok`. No error/fatal runtime entries appeared in the checked 30-minute log window.
+- **Interactive verification limit:** the private Vercel preview requires SSO and could not be exercised with real browser/WebSocket automation from this verifier. Automated Streamlit AppTest covers a cited BM25 fallback, evidence-download control, recent query selection, and clear-search behavior. Root/health success alone is not proof of end-to-end browser RAG behavior.
+- **Evaluation:** no new Module 1 metrics are claimed because the matching `Module1.pdf` is absent. The stored 34-question metrics remain historical retrieval measures and are not generated-answer factuality scores.
 
-Project claims remain limited to the tests, dataset-specific evaluation results, and deployment checks actually completed.
+Any remaining claims should stay limited to the tested behavior, historical dataset-specific metrics, and deployment checks described above.
