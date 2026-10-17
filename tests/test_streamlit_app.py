@@ -53,3 +53,12 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
     assert "Binary search repeatedly halves" in rendered_markdown
     assert any("higher-priority method was unavailable" in item.value for item in app.caption)
     assert any("Semantic search is unavailable" in item.value for item in app.warning)
+
+    downloads = app.get("download_button")
+    assert any(item.label == "Download evidence report (.md)" for item in downloads)
+
+    clear_button = next(item for item in app.button if item.label == "Clear search results")
+    clear_button.click().run()
+    assert not app.exception
+    assert app.text_input[0].value == ""
+    assert "Best matching passage" not in "\\n".join(str(item.value) for item in app.markdown)
