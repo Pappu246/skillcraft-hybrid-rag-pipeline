@@ -1,5 +1,8 @@
 # SkillCraft Hybrid RAG Pipeline
 
+> **Student package copy:** Pinkesh Kumar (`25TEC2CSML138`) · [GitHub profile](https://github.com/pinkeshkumar-ML). This is a customized copy of the upstream project; see [STUDENT_PROFILE.md](STUDENT_PROFILE.md) for attribution and personalization notes.
+
+
 **SkillCraft Technology — AI Engineering Internship, Task 01**
 
 A practical Retrieval-Augmented Generation (RAG) baseline that compares BM25 keyword retrieval, dense vector retrieval, and hybrid retrieval, optionally reranks candidates, and returns source/page citations with generated answers.
