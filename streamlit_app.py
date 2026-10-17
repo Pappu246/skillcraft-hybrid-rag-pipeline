@@ -276,24 +276,6 @@ with st.sidebar:
     )
     st.caption("Your uploaded PDFs are processed in a temporary folder for extraction and are not added to the GitHub repository.")
 
-with st.sidebar:
-    history = st.session_state.recent_searches
-    if history:
-        with st.expander("Recent searches (this session)", expanded=False):
-            st.caption("Select a previous question to fill it in again. The search will run only after you press Find relevant passages.")
-            for index, item in enumerate(history):
-                st.caption(f"{item['source_label']} · {item['citation']}")
-                visible_question = item["question"]
-                if len(visible_question) > 48:
-                    visible_question = visible_question[:45] + "..."
-                st.button(
-                    f"Use recent query: {visible_question}",
-                    key=f"recent_query_{index}",
-                    on_click=_use_history_entry,
-                    args=(item["question"], item["source_mode"]),
-                    **_stretch_width(st.button),
-                )
-
 if source_mode == "Try the sample guide":
     active_index = st.session_state.sample_index
     source_ready = True
@@ -368,6 +350,24 @@ if submitted:
                 logger.exception("Document search failed")
                 st.session_state.retrieval_report = None
                 st.error(f"Search did not complete: {exc}")
+
+with st.sidebar:
+    history = st.session_state.recent_searches
+    if history:
+        with st.expander("Recent searches (this session)", expanded=False):
+            st.caption("Select a previous question to fill it in again. The search will run only after you press Find relevant passages.")
+            for index, item in enumerate(history):
+                st.caption(f"{item['source_label']} · {item['citation']}")
+                visible_question = item["question"]
+                if len(visible_question) > 48:
+                    visible_question = visible_question[:45] + "..."
+                st.button(
+                    f"Use recent query: {visible_question}",
+                    key=f"recent_query_{index}",
+                    on_click=_use_history_entry,
+                    args=(item["question"], item["source_mode"]),
+                    **_stretch_width(st.button),
+                )
 
 report = st.session_state.retrieval_report
 report_is_current = (
