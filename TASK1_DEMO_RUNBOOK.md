@@ -30,12 +30,13 @@ python -m pip install -r requirements.txt
 streamlit run streamlit_app.py
 ```
 
-The first dense query downloads the Sentence-Transformers model and may take longer. The demo disables Streamlit's file watcher to prevent noisy Transformers-module tracebacks; restart the app after pulling updates. Retrieval comparison can run without `RAG_API_KEY`, `RAG_API_BASE_URL`, or `RAG_MODEL`. In that configuration, the answer button returns clearly labelled source context, not an AI-generated answer.
+The first dense query downloads the Sentence-Transformers model and may take longer. The demo disables Streamlit's file watcher to prevent noisy Transformers-module tracebacks; restart the app after pulling updates. Retrieval comparison can run without `RAG_API_KEY`, `RAG_API_BASE_URL`, or `RAG_MODEL`. Without those settings, the UI labels retrieved passages as evidence and does not claim model generation. If semantic search fails, keyword results can still appear and are labelled as a BM25 fallback. When credentials are configured, generated responses are requested only after the user explicitly selects Generate; the question and retrieved passages are sent to the configured provider, and citations are validated before display.
 
 ## Upload and privacy checks
 
-- Upload text-based PDFs only; combined uploads are limited to 20 MB.
-- The app sanitizes upload names and extracts content in a temporary directory.
+- Upload text-based PDFs only; combined uploads are limited to 20 MB and 2,000 physical pages. Files need a `.pdf` extension plus a PDF header.
+- Encrypted, malformed, empty, or image-only files show actionable recovery guidance; scanned PDFs require OCR.
+- The app sanitizes upload names and extracts content in a temporary directory that is cleaned on success or failure.
 - Uploaded files are not committed to the repository.
 - Avoid private, personal, or restricted files in any public demo.
 - If LLM credentials are configured, the question and retrieved evidence are sent to the configured provider. Do not configure an endpoint you do not trust.

@@ -1,6 +1,8 @@
 """Page-level retrieval quality evaluation for labelled question datasets."""
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from typing import Any
 
@@ -115,12 +117,54 @@ def evaluate_retrieval_dataset(
         ),
     }
 
+    corpus_chunks = getattr(index, "chunks", ())
+    corpus_rows = [
+        {
+            "chunk_id": chunk.chunk_id,
+            "source": chunk.source,
+            "page": chunk.page,
+            "text": chunk.text,
+        }
+        for chunk in corpus_chunks
+    ]
+    corpus_fingerprint = hashlib.sha256(
+        json.dumps(corpus_rows, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest() if corpus_rows else None
+    evaluation_rows = [
+        {
+            "id": row["id"],
+            "question": row["question"],
+            "relevant_pages": [
+                {"source": source, "page": page}
+                for source, page in sorted(row["relevant_pages"])
+            ],
+        }
+        for row in rows
+    ]
+    dataset_fingerprint = hashlib.sha256(
+        json.dumps(evaluation_rows, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    source_names = sorted({chunk.source for chunk in corpus_chunks})
     report: dict[str, Any] = {
         "evaluation_unit": "unique source filename + 1-based page",
         "aggregation": "macro average across questions",
         "questions": len(rows),
         "top_k": top_k,
         "candidate_chunks_requested": fetch_k,
+        "configuration": {
+            "methods": ["bm25", "dense normalized cosine", "hybrid RRF"],
+            "embedding_model": getattr(index, "embedding_model_name", None),
+            "reranker_model": getattr(index, "reranker_model_name", None),
+            "rrf_constant": 60,
+            "chunk_size_chars": getattr(index, "chunk_size", None),
+            "chunk_overlap_chars": getattr(index, "chunk_overlap", None),
+            "max_pages": getattr(index, "max_pages", None),
+            "chunk_count": len(corpus_rows),
+            "source_filenames": source_names,
+            "corpus_content_sha256": corpus_fingerprint,
+            "evaluation_dataset_sha256": dataset_fingerprint,
+            "question_count": len(rows),
+        },
         "metrics": {},
     }
 

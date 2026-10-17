@@ -2,13 +2,31 @@
 from __future__ import annotations
 
 import html
+import inspect
+import logging
 import os
 
 import pandas as pd
 import streamlit as st
 
-from rag_pipeline.core import generate_answer
-from rag_pipeline.demo import build_index_from_uploads, build_sample_index, compare_retrievers
+from rag_pipeline.core import MAX_PDF_PAGES, Chunk, SearchResult, generate_answer
+from rag_pipeline.demo import (
+    MAX_UPLOAD_BYTES,
+    build_index_from_uploads,
+    build_sample_index,
+    compare_retrievers,
+    upload_collection_signature,
+)
+
+logger = logging.getLogger(__name__)
+
+
+def _stretch_width(widget) -> dict[str, object]:
+    """Use Streamlit's non-deprecated full-width option across supported versions."""
+    if "width" in inspect.signature(widget).parameters:
+        return {"width": "stretch"}
+    return {"use_container_width": True}
+
 
 st.set_page_config(
     page_title="SkillCraft | Document Search",
@@ -68,6 +86,8 @@ if "uploaded_index" not in st.session_state:
     st.session_state.uploaded_index = None
 if "uploaded_chunk_count" not in st.session_state:
     st.session_state.uploaded_chunk_count = 0
+if "uploaded_signature" not in st.session_state:
+    st.session_state.uploaded_signature = None
 if "retrieval_report" not in st.session_state:
     st.session_state.retrieval_report = None
 if "retrieval_question" not in st.session_state:
@@ -100,23 +120,44 @@ with st.sidebar:
             "1. Choose PDF file(s)",
             type=["pdf"],
             accept_multiple_files=True,
-            help="Text-based PDFs only. Combined size limit: 20 MB. Scanned PDFs need OCR first.",
+            max_upload_size=MAX_UPLOAD_BYTES // (1024 * 1024),
+            help=f"Text-based PDFs only. Combined limit: 20 MB and {MAX_PDF_PAGES:,} pages. Scanned PDFs need OCR first.",
         )
-        if st.button("2. Prepare my PDF", type="primary", use_container_width=True):
+        current_upload_signature = upload_collection_signature(uploads)
+        if (
+            st.session_state.uploaded_index is not None
+            and st.session_state.uploaded_signature != current_upload_signature
+        ):
+            st.session_state.uploaded_index = None
+            st.session_state.uploaded_chunk_count = 0
+            st.session_state.uploaded_signature = None
+            st.session_state.retrieval_report = None
+            st.session_state.answer_text = None
+        if st.button("2. Prepare my PDF", type="primary", **_stretch_width(st.button)):
             if not uploads:
                 st.warning("Choose at least one PDF first.")
             else:
+                st.session_state.retrieval_report = None
+                st.session_state.answer_text = None
+                st.session_state.uploaded_index = None
+                st.session_state.uploaded_chunk_count = 0
+                st.session_state.uploaded_signature = None
                 with st.spinner("Reading PDF pages and preparing search..."):
                     try:
                         idx, chunk_count = build_index_from_uploads(uploads)
                         st.session_state.uploaded_index = idx
                         st.session_state.uploaded_chunk_count = chunk_count
-                        st.session_state.retrieval_report = None
-                        st.session_state.answer_text = None
+                        st.session_state.uploaded_signature = current_upload_signature
                         st.success(f"Your PDF is ready. {chunk_count} text passages indexed.")
                     except Exception as exc:
-                        st.error(f"Could not read these PDFs: {exc}")
-        if st.session_state.uploaded_index is not None:
+                        logger.exception("Uploaded PDF indexing failed")
+                        st.error(f"Could not prepare these PDFs: {exc}")
+        upload_matches_index = (
+            st.session_state.uploaded_index is not None
+            and st.session_state.uploaded_signature == current_upload_signature
+            and bool(current_upload_signature)
+        )
+        if upload_matches_index:
             st.success(f"PDF ready · {st.session_state.uploaded_chunk_count} passages")
         else:
             st.info("After choosing your PDF, select Prepare my PDF.")
@@ -134,7 +175,7 @@ with st.sidebar:
         st.button(
             label,
             key=f"suggest_{label}",
-            use_container_width=True,
+            **_stretch_width(st.button),
             on_click=_use_suggestion,
             args=(value,),
         )
@@ -154,7 +195,7 @@ if source_mode == "Try the sample guide":
     source_ready = True
     active_source_label = "Built-in Data Structures Guide"
 else:
-    active_index = st.session_state.uploaded_index
+    active_index = st.session_state.uploaded_index if upload_matches_index else None
     source_ready = active_index is not None
     active_source_label = "Your uploaded PDF collection"
 
@@ -177,7 +218,7 @@ with st.form("query_form"):
     submitted = st.form_submit_button(
         "Find relevant passages",
         type="primary",
-        use_container_width=True,
+        **_stretch_width(st.form_submit_button),
         disabled=not source_ready,
     )
 
@@ -198,6 +239,7 @@ if submitted:
                 st.session_state.answer_text = None
                 st.session_state.answer_question = ""
             except Exception as exc:
+                logger.exception("Document search failed")
                 st.session_state.retrieval_report = None
                 st.error(f"Search did not complete: {exc}")
 
@@ -214,7 +256,11 @@ if report_is_current:
     st.markdown('<div class="step">Step 2 of 2</div>', unsafe_allow_html=True)
     st.markdown("## Best matching passage")
     st.write("Start with this passage. The citation tells you which source and page to check.")
-    best_results = report.get("hybrid", [])
+    errors = report.get("_errors", {})
+    for error_message in dict.fromkeys(errors.values()):
+        st.warning(error_message)
+    best_method = next((name for name in ("hybrid", "dense", "bm25") if report.get(name)), None)
+    best_results = report.get(best_method, []) if best_method else []
     if best_results:
         best = best_results[0]
         st.markdown(
@@ -224,30 +270,42 @@ if report_is_current:
             '</div>',
             unsafe_allow_html=True,
         )
-        st.caption("This is text retrieved from the source, not a guaranteed correct answer. Open the cited page to verify the context.")
+        if best_method == "hybrid":
+            st.caption("Retrieved evidence from the selected source, not a guaranteed correct answer. Open the cited page to verify the context.")
+        else:
+            st.caption(f"Retrieved evidence using {best_method} search because a higher-priority method was unavailable. Open the cited page to verify the context.")
     else:
         st.info("No matching passage was found. Try a more specific question or upload a text-based PDF with the relevant topic.")
 
     has_generation = all(os.getenv(key) for key in ("RAG_API_KEY", "RAG_API_BASE_URL", "RAG_MODEL"))
     with st.expander("Would you like an AI-written response?"):
         if has_generation:
-            st.write("An AI model is configured. Its response will be based on the retrieved passages and should be checked against the citations.")
-            if st.button("Generate a response with source context", type="primary"):
+            st.write("When you choose Generate, the question and retrieved passages will be sent to the configured model provider. Do not use this for confidential documents unless you trust that provider.")
+            if best_results and st.button("Generate a response with source context", type="primary"):
                 try:
-                    hybrid_chunks = active_index.search_hybrid(st.session_state.retrieval_question, top_k=top_k)
-                    st.session_state.answer_text = generate_answer(st.session_state.retrieval_question, hybrid_chunks)
+                    cited_results = [
+                        SearchResult(
+                            Chunk(item["chunk_id"], item["text"], item["source"], item["page"], rank),
+                            float(item["score"]), rank + 1, item["method"],
+                        )
+                        for rank, item in enumerate(best_results)
+                    ]
+                    st.session_state.answer_text = generate_answer(
+                        st.session_state.retrieval_question, cited_results
+                    )
                     st.session_state.answer_question = st.session_state.retrieval_question
                 except Exception as exc:
+                    logger.exception("Answer generation failed")
                     st.error(f"Could not generate the response: {exc}")
         else:
             st.info(
-                "AI answer generation is not configured in this local demo. Search and page citations work without an API key. "
-                "To enable generated answers, configure RAG_API_KEY, RAG_API_BASE_URL, and RAG_MODEL in your own trusted environment."
+                "AI answer generation is not configured in this demo. Search and page citations work without an API key. "
+                "To enable generation, configure RAG_API_KEY, RAG_API_BASE_URL, and RAG_MODEL in a trusted environment."
             )
         if st.session_state.answer_text and st.session_state.answer_question == st.session_state.retrieval_question:
             st.markdown("### Generated response")
-            st.markdown(st.session_state.answer_text)
-            st.caption("Verify important details against the cited source passage.")
+            st.text(st.session_state.answer_text)
+            st.caption("This is model-generated text. Verify factual details against the source citations.")
 
     with st.expander("Compare how the three search methods performed"):
         st.write("These are three ways of finding passages for the same question. You do not need to understand the technical scores to use the app.")
@@ -256,11 +314,11 @@ if report_is_current:
             with tab:
                 results = report.get(method_name, [])
                 if not results:
-                    st.info("No passages were returned by this method.")
+                    st.info(errors.get(method_name, "No passages were returned by this method."))
                 for item in results:
                     with st.container(border=True):
                         st.markdown(f"**{html.escape(item['citation'])}**")
-                        st.write(html.escape(item["text"]))
+                        st.text(item["text"])
                         with st.expander("Technical details"):
                             st.caption(f"Rank: {item['rank']} · Method: {item['method']} · Internal score: {item['score']:.4f}")
 
@@ -280,7 +338,7 @@ with st.expander("Recorded evaluation results (advanced)"):
             {"Search method": "Hybrid (combined)", "Recall@5": 0.941, "MRR@5": 0.741, "nDCG@5": 0.792},
         ]
     )
-    st.dataframe(metrics, hide_index=True, use_container_width=True)
+    st.dataframe(metrics, hide_index=True, **_stretch_width(st.dataframe))
     st.caption("On this particular labelled set, Dense retrieval ranked highest. These figures should not be presented as overall answer accuracy.")
 
 st.divider()

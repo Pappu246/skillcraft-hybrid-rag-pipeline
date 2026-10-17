@@ -1,0 +1,54 @@
+# Engineering audit and implementation record
+
+**Audit date:** 2026-10-17 (UTC)  
+**Repository:** `Pappu246/skillcraft-hybrid-rag-pipeline`  
+**Starting commit:** `925759c12b6a3d3f7ace9cb2a7e37d7cc44305af`  
+**Starting branch:** `arena/dbb5fedd-skillcraft-hybrid-rag-pipeline` (the Arena session fixes this branch; no branch switch was made)  
+**Starting worktree:** clean. `origin/main` pointed at the starting commit.
+
+## Baseline and source checks
+
+- Enumerated all tracked project files before editing; this is the existing Streamlit/Python application, not a replacement project.
+- Latest pre-change GitHub Actions run: [Tests #38945291981](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/38945291981), completed successfully on commit `925759c`.
+- Vercel project `skillcraft-hybrid-rag-pipeline` is configured as a container project. Deployment `dpl_5XPi2y8qhuSsQoEkqbib4C8f1MXE`, built from `925759c` on `main`, is `READY`/`PROMOTED`; its production aliases include `https://skillcraft-hybrid-rag-pipeline-git-main-pappu246s-projects.vercel.app/`.
+- The initial host had Python 3.11.2 but no project/test dependencies. System-wide pip installation was blocked by PEP 668. A repository-ignored `.venv` was created for checks; project files were untouched by that setup.
+- Baseline after installing the test/UI dependencies and editable package: **23 passed**. `python -m compileall` and `pip check` passed for that partial environment. This was a test baseline, not a dense-model or live-provider run.
+- A full isolated dependency set was subsequently installed in `.venv`; no package constraints in the repository were changed.
+- `evaluation_datasets/module1.json` contains all 34 labelled questions. The referenced `Module1.pdf` source is not present in the checkout, so the document-specific evaluation could not be rerun.
+
+## Findings, root causes, and fixes
+
+| Severity | Finding and reproduction | Root cause | Fix / regression coverage |
+|---|---|---|---|
+| P1 | A dense model import/download/embedding exception during the Streamlit comparison or CLI comparison could abort the whole search, even where BM25 could return evidence. Reproduce by making `search_dense` raise while `search_bm25` returns a result. | The Streamlit helper used one dictionary comprehension and the CLI warmed methods in a loop without isolation; exceptions escaped before usable results reached the UI/report. | Each method now runs independently, records actionable safe error text, and logs diagnostics. The UI and CLI now report method-level failures while preserving BM25; CLI `ask` explicitly labels its keyword fallback. The UI presents the best available method and accurately labels a BM25/dense fallback instead of claiming hybrid retrieval. Covered by helper, comparison, and interactive Streamlit AppTest regression tests. |
+| P1 | BM25 could rank every chunk for an unrelated query when every lexical score was zero. | It returned the first `top_k` rows without distinguishing a real match from stable zero-score ties. | Non-finite scores and zero-score documents without actual token overlap are excluded. Because BM25Okapi can produce a net zero for genuine matches in tiny corpora, those candidates are retained and deterministically tie-broken by query-term overlap; a true no-match query returns no BM25 evidence. Tests cover both zero-score no-match and an end-to-end two-page PDF where BM25 scores cancel. |
+| P1 | Invalid provider citations could be shown as if they came from the uploaded evidence; retrieved document text had no explicit prompt-injection boundary. | Generation trusted model text without checking citation provenance and did not explicitly treat document content as untrusted instructions. | Generation prompt explicitly treats retrieved text as untrusted data and prohibits tools/secret disclosure. Citation references are checked against the exact retrieved citation set; unsupported or missing citations are withheld. Empty evidence abstains without contacting a provider. Provider timeouts, auth, rate-limit, server, transport, and malformed-response cases receive actionable user errors. Deterministic mock tests cover disabled generation, abstention, prompt boundary, fabricated citations, and timeout handling. |
+| P2 | Malformed, encrypted, and textless PDFs did not get consistent source-specific recovery messages; `.PDF` extensions were not enumerated on case-sensitive filesystems. | Ingestion relied on a lowercase-only glob and did not wrap parser failures or distinguish encrypted/textless sources. | Case-insensitive PDF enumeration, explicit encrypted/empty/textless validation, filename-scoped parser errors, hash-based chunk IDs, and temporary-directory cleanup regression tests. Uploads also require a PDF header within the first 1 KiB in addition to a `.pdf` suffix, per-file size guard, 20 MiB combined size limit, and 2,000-page combined processing limit (the CLI can override the page cap for trusted local workloads). |
+| P2 | Top results could be multiple chunks from one page; duplicate chunk IDs could merge unrelated provenance in RRF. | Chunk-level ranking had no source-page collapsing, corpus validation, or duplicate-ID guard. | Search results now retain only the highest-ranked chunk for each source/page and renumber ranks. Index construction rejects empty text, invalid physical pages, and duplicate chunk IDs. RRF skips duplicate chunk entries and invalid ranks and validates its configuration. |
+| P2 | Reranker score lists could silently truncate with `zip`, and non-finite scores could destabilize ranking. | Result and score lengths/finite values were not checked; ties had no explicit stable ordering. | Reranker scores are validated for exact count and finiteness; stable deterministic tie-breaking is applied. |
+| P2 | Search output could remain visible after the selected PDF bytes changed without re-indexing. | Session validity tracked question and source-mode label, not the actual upload selection. | The app fingerprints selected upload names and bytes; only an index built from the currently selected files is searchable, and changed selections clear prior results/answers/index state. The pure signature and Streamlit interaction path are covered by tests. |
+| P2 | The UI comparison could encode the same question twice—once for Dense and again inside Hybrid RRF. | Independent comparisons discarded the already-computed candidate list. | Built-in UI comparisons now retrieve a wider candidate set once and fuse the existing BM25/Dense results. A counting-encoder regression test verifies one query embedding per comparison. |
+| P2 | Evaluation JSON did not identify the embedding configuration or corpus version. | The evaluator reported metrics and labels but not a reproducible content identifier. | Reports now include embedding/reranker names, chunk size/overlap/page-limit settings persisted in the index, method/RRF configuration, source names, chunk count, question count, and SHA-256 fingerprints of indexed chunk content and normalized evaluation labels. |
+
+## Verification after changes
+
+- Latest local full-suite run: **50 passed** (`.venv/bin/pytest -q`).
+- `.venv/bin/python -m compileall -q rag_pipeline streamlit_app.py`: passed.
+- `.venv/bin/python -m pip check`: passed after installing the declared sentence-transformers dependency in the isolated venv.
+- `.venv/bin/python -m rag_pipeline.cli --help`: passed; CLI commands render.
+- `git diff --check`: passed at the time of the check.
+- Streamlit `AppTest`: initial page rendered without application exceptions. An interactive form submission with simulated dense/hybrid failure rendered a BM25 passage and `[Guide.pdf, p. 4]` citation, clearly identified the fallback, and raised no application exception. The simulation deliberately avoids a live model download. A separate actual offline-mode sample-guide run with no cached Hugging Face weights produced page-4 BM25 evidence and explicit Dense/Hybrid unavailable states without aborting the search.
+- Live local Streamlit server started on `0.0.0.0:8501`; `/` returned HTTP 200 and `/_stcore/health` returned `200 ok`. The sample guide BM25 smoke queries returned `[Built-in Data Structures Guide, p. 4]` for “How does binary search reduce search time?” and page 6 for “How does a hash table handle collisions?”. This does not exercise the deployed website or real dense model weights.
+- `pip-audit`: reported **no known vulnerabilities** for the installed third-party environment; it explicitly skipped the editable local project because it is not a PyPI distribution. This is not a full supply-chain guarantee.
+- No `Module1.pdf` or private index is in the repository. Do not interpret the historic baseline as a new before/after comparison: BM25 0.824/0.674/0.712, Dense 0.971/0.785/0.832, Hybrid 0.941/0.741/0.792 remain the previously recorded results. The new retrieval de-duplication/zero-score behavior warrants a fresh evaluation against the matching source PDF before making a new performance claim.
+- Render verification was via Streamlit's actual app execution/AppTest. No browser screenshot was captured: this sandbox has no browser binary or screenshot automation installed.
+
+## Deployment / remaining verification
+
+Vercel metadata verifies that the existing production deployment is `READY`/`PROMOTED` and its aliases point to the expected `main` deployment. This audit did **not** build/promote a candidate from the working branch, open a browser to the production URL, check its health endpoint, inspect current runtime logs, or submit the two requested live queries. This sandbox's outbound network allowlist excludes the public Vercel host and there is no browser automation tool here. Therefore the production interactive RAG workflow remains **unverified by this audit**; a prior report's health check is historical evidence, not a fresh interactive smoke test.
+
+The current GitHub Actions run after implementation, PR status, and deployment candidate URL will be appended only after those actions actually complete. Do not promote an unverified build. The existing `main` deployment remains the rollback point.
+
+## Rollback
+
+All implementation changes are isolated on `arena/dbb5fedd-skillcraft-hybrid-rag-pipeline`. To revert only this work, close the PR without merging or revert its merge commit after a merge. Keep the existing `main` deployment (`dpl_5XPi2y8qhuSsQoEkqbib4C8f1MXE`) and production aliases unchanged until a candidate has passed review and real browser interaction checks.
