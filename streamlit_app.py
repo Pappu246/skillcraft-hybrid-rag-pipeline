@@ -389,32 +389,37 @@ if report_is_current:
         for item in report.get(method, [])
         if isinstance(item, dict) and str(item.get("source", "")).strip()
     })
-    source_filter_options = ["All sources", *[
-        name for name in source_names if name != "All sources"
-    ]]
-    if st.session_state.get("retrieval_source_filter", "All sources") not in source_filter_options:
+    if len(source_names) > 1:
+        source_filter_options = ["All sources", *[
+            name for name in source_names if name != "All sources"
+        ]]
+        if st.session_state.get("retrieval_source_filter", "All sources") not in source_filter_options:
+            st.session_state.retrieval_source_filter = "All sources"
+        selected_source_filter = st.selectbox(
+            "Limit evidence to source",
+            options=source_filter_options,
+            key="retrieval_source_filter",
+            help=(
+                "Filter the visible passages and downloads to one PDF. Retrieval scores and ranks "
+                "are unchanged; an optional generated response uses the filtered evidence."
+            ),
+        )
+        display_report = filter_comparison_report_by_source(
+            report,
+            None if selected_source_filter == "All sources" else selected_source_filter,
+        )
+        export_material_label = (
+            active_source_label
+            if selected_source_filter == "All sources"
+            else selected_source_filter
+        )
+        st.caption(
+            "Source filtering changes the evidence view and downloads, not the original retrieval run."
+        )
+    else:
         st.session_state.retrieval_source_filter = "All sources"
-    selected_source_filter = st.selectbox(
-        "Limit evidence to source",
-        options=source_filter_options,
-        key="retrieval_source_filter",
-        help=(
-            "Filter the visible passages and downloads to one PDF. Retrieval scores and ranks "
-            "are unchanged; an optional generated response uses the filtered evidence."
-        ),
-    )
-    display_report = filter_comparison_report_by_source(
-        report,
-        None if selected_source_filter == "All sources" else selected_source_filter,
-    )
-    export_material_label = (
-        active_source_label
-        if selected_source_filter == "All sources"
-        else selected_source_filter
-    )
-    st.caption(
-        "Source filtering changes the evidence view and downloads, not the original retrieval run."
-    )
+        display_report = filter_comparison_report_by_source(report, None)
+        export_material_label = active_source_label
     st.divider()
     st.markdown('<div class="step">Step 2 of 2</div>', unsafe_allow_html=True)
     st.markdown("## Best matching passage")
