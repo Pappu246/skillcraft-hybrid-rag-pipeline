@@ -107,6 +107,70 @@ def _use_suggestion(value: str) -> None:
     st.session_state.answer_text = None
 
 
+def _clear_search_results() -> None:
+    """Clear the current question, retrieval results, and generated answer."""
+    st.session_state.question_input = ""
+    st.session_state.retrieval_report = None
+    st.session_state.retrieval_question = ""
+    st.session_state.retrieval_mode = ""
+    st.session_state.answer_text = None
+    st.session_state.answer_question = ""
+
+
+def _build_evidence_markdown(
+    question: str, source_label: str, report: dict[str, object]
+) -> str:
+    """Export user-visible evidence and provenance without claiming answer accuracy."""
+    titles = {
+        "hybrid": "Combined search (Hybrid RRF)",
+        "dense": "Search by meaning (Dense)",
+        "bm25": "Search by keywords (BM25)",
+    }
+    errors = report.get("_errors", {})
+    lines = [
+        "# SkillCraft — Retrieved Evidence Report",
+        "",
+        f"**Question:** {question.strip()}",
+        f"**Selected material:** {source_label}",
+        "**Purpose:** Retrieved source passages for verification; this report does not guarantee factual correctness.",
+        "",
+        "## Retrieved passages",
+        "",
+    ]
+    any_results = False
+    for method in ("hybrid", "dense", "bm25"):
+        items = report.get(method, [])
+        if not items:
+            continue
+        any_results = True
+        lines.extend([f"### {titles[method]}", ""])
+        for item in items:
+            citation = str(item.get("citation", "Citation unavailable"))
+            text = str(item.get("text", "")).strip()
+            rank = item.get("rank", "?")
+            lines.extend([
+                f"**{citation}** · Rank {rank}",
+                "",
+                text,
+                "",
+            ])
+    if not any_results:
+        lines.extend(["No evidence passages were returned for this query.", ""])
+    if errors:
+        lines.extend(["## Retrieval notes", ""])
+        for method, message in errors.items():
+            lines.append(f"- **{str(method).upper()}:** {message}")
+        lines.append("")
+    lines.extend([
+        "## Verification note",
+        "",
+        "Check each cited source page and its surrounding context before relying on a passage. "
+        "A retrieved passage is evidence, not proof that an answer is complete or correct.",
+        "",
+    ])
+    return "\n".join(lines)
+
+
 with st.sidebar:
     st.markdown("## Start here")
     source_mode = st.radio(
@@ -179,6 +243,14 @@ with st.sidebar:
             on_click=_use_suggestion,
             args=(value,),
         )
+
+    st.button(
+        "Clear search results",
+        key="clear_search_results",
+        on_click=_clear_search_results,
+        **_stretch_width(st.button),
+        help="Clear the current question, retrieved passages, and generated answer. Your prepared PDF remains available.",
+    )
 
     st.divider()
     st.markdown("### What the app does")
@@ -276,6 +348,21 @@ if report_is_current:
             st.caption(f"Retrieved evidence using {best_method} search because a higher-priority method was unavailable. Open the cited page to verify the context.")
     else:
         st.info("No matching passage was found. Try a more specific question or upload a text-based PDF with the relevant topic.")
+
+    export_markdown = _build_evidence_markdown(
+        st.session_state.retrieval_question,
+        active_source_label,
+        report,
+    )
+    st.download_button(
+        "Download evidence report (.md)",
+        data=export_markdown,
+        file_name="skillcraft-evidence-report.md",
+        mime="text/markdown",
+        **_stretch_width(st.download_button),
+        help="Export the question, source/page citations, retrieved passages, and any retrieval warnings.",
+    )
+    st.caption("The export contains retrieved evidence and citations; it is not a certified answer.")
 
     has_generation = all(os.getenv(key) for key in ("RAG_API_KEY", "RAG_API_BASE_URL", "RAG_MODEL"))
     with st.expander("Would you like an AI-written response?"):
