@@ -54,6 +54,7 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
     assert "Binary search repeatedly halves" in rendered_markdown
     assert any("higher-priority method was unavailable" in item.value for item in app.caption)
     assert any("Semantic search is unavailable" in item.value for item in app.warning)
+    assert not any(item.label == "Limit evidence to source" for item in app.selectbox)
 
     downloads = app.get("download_button")
     assert any(item.label == "Download evidence report (.md)" for item in downloads)
@@ -70,3 +71,58 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
     assert not app.exception
     assert app.text_input[0].value == ""
     assert "Best matching passage" not in "\\n".join(str(item.value) for item in app.markdown)
+
+def test_streamlit_source_filter_limits_visible_evidence_and_resets_for_new_query(monkeypatch):
+    import rag_pipeline.demo as demo
+
+    def multi_source_report(_index, _question, _top_k):
+        return {
+            "hybrid": [
+                {
+                    "chunk_id": "alpha", "text": "Evidence from alpha source.",
+                    "source": "alpha.pdf", "page": 1, "citation": "[alpha.pdf, p. 1]",
+                    "score": 0.9, "rank": 1, "method": "hybrid",
+                },
+                {
+                    "chunk_id": "beta", "text": "Evidence from beta source.",
+                    "source": "beta.pdf", "page": 2, "citation": "[beta.pdf, p. 2]",
+                    "score": 0.8, "rank": 2, "method": "hybrid",
+                },
+            ],
+            "dense": [
+                {
+                    "chunk_id": "beta-dense", "text": "Semantic evidence from beta source.",
+                    "source": "beta.pdf", "page": 2, "citation": "[beta.pdf, p. 2]",
+                    "score": 0.7, "rank": 1, "method": "dense",
+                },
+            ],
+            "bm25": [],
+            "_errors": {},
+        }
+
+    monkeypatch.setattr(demo, "compare_retrievers", multi_source_report)
+    app_path = Path(__file__).resolve().parents[1] / "streamlit_app.py"
+    app = AppTest.from_file(str(app_path), default_timeout=30).run()
+    app.text_input[0].set_value("find evidence")
+    app.get("form_submit_button")[0].click().run()
+
+    assert not app.exception
+    source_filter = next(item for item in app.selectbox if item.label == "Limit evidence to source")
+    assert source_filter.value == "All sources"
+    source_filter.select("beta.pdf").run()
+
+    assert not app.exception
+    rendered = "\\n".join(
+        [str(item.value) for item in app.markdown]
+        + [str(item.value) for item in app.text]
+        + [str(item.value) for item in app.caption]
+    )
+    assert "[beta.pdf, p. 2]" in rendered
+    assert "Evidence from beta source." in rendered
+    assert "Evidence from alpha source." not in rendered
+
+    app.text_input[0].set_value("new question")
+    app.get("form_submit_button")[0].click().run()
+    assert not app.exception
+    source_filter = next(item for item in app.selectbox if item.label == "Limit evidence to source")
+    assert source_filter.value == "All sources"

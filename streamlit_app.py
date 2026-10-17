@@ -13,6 +13,7 @@ from rag_pipeline.core import MAX_PDF_PAGES, Chunk, SearchResult, generate_answe
 from rag_pipeline.demo import (
     MAX_UPLOAD_BYTES,
     build_comparison_csv,
+    filter_comparison_report_by_source,
     build_index_from_uploads,
     build_sample_index,
     compare_retrievers,
@@ -119,6 +120,7 @@ def _use_history_entry(question: str, source_mode_value: str) -> None:
     st.session_state.retrieval_mode = ""
     st.session_state.answer_text = None
     st.session_state.answer_question = ""
+    st.session_state.retrieval_source_filter = "All sources"
 
 
 def _clear_search_results() -> None:
@@ -129,6 +131,7 @@ def _clear_search_results() -> None:
     st.session_state.retrieval_mode = ""
     st.session_state.answer_text = None
     st.session_state.answer_question = ""
+    st.session_state.retrieval_source_filter = "All sources"
 
 
 def _build_evidence_markdown(
@@ -320,6 +323,7 @@ if submitted:
     else:
         with st.spinner("Searching the document. The first meaning-based search can take a little longer while the model loads..."):
             try:
+                st.session_state.retrieval_source_filter = "All sources"
                 st.session_state.retrieval_report = compare_retrievers(active_index, question, top_k)
                 st.session_state.retrieval_question = question.strip()
                 st.session_state.retrieval_mode = source_mode
@@ -379,15 +383,52 @@ report_is_current = (
 )
 
 if report_is_current:
+    source_names = sorted({
+        str(item.get("source", "")).strip()
+        for method in ("hybrid", "dense", "bm25")
+        for item in report.get(method, [])
+        if isinstance(item, dict) and str(item.get("source", "")).strip()
+    })
+    if len(source_names) > 1:
+        source_filter_options = ["All sources", *[
+            name for name in source_names if name != "All sources"
+        ]]
+        if st.session_state.get("retrieval_source_filter", "All sources") not in source_filter_options:
+            st.session_state.retrieval_source_filter = "All sources"
+        selected_source_filter = st.selectbox(
+            "Limit evidence to source",
+            options=source_filter_options,
+            key="retrieval_source_filter",
+            help=(
+                "Filter the visible passages and downloads to one PDF. Retrieval scores and ranks "
+                "are unchanged; an optional generated response uses the filtered evidence."
+            ),
+        )
+        display_report = filter_comparison_report_by_source(
+            report,
+            None if selected_source_filter == "All sources" else selected_source_filter,
+        )
+        export_material_label = (
+            active_source_label
+            if selected_source_filter == "All sources"
+            else selected_source_filter
+        )
+        st.caption(
+            "Source filtering changes the evidence view and downloads, not the original retrieval run."
+        )
+    else:
+        st.session_state.retrieval_source_filter = "All sources"
+        display_report = filter_comparison_report_by_source(report, None)
+        export_material_label = active_source_label
     st.divider()
     st.markdown('<div class="step">Step 2 of 2</div>', unsafe_allow_html=True)
     st.markdown("## Best matching passage")
     st.write("Start with this passage. The citation tells you which source and page to check.")
-    errors = report.get("_errors", {})
+    errors = display_report.get("_errors", {})
     for error_message in dict.fromkeys(errors.values()):
         st.warning(error_message)
-    best_method = next((name for name in ("hybrid", "dense", "bm25") if report.get(name)), None)
-    best_results = report.get(best_method, []) if best_method else []
+    best_method = next((name for name in ("hybrid", "dense", "bm25") if display_report.get(name)), None)
+    best_results = display_report.get(best_method, []) if best_method else []
     if best_results:
         best = best_results[0]
         st.markdown(
@@ -406,8 +447,8 @@ if report_is_current:
 
     export_markdown = _build_evidence_markdown(
         st.session_state.retrieval_question,
-        active_source_label,
-        report,
+        export_material_label,
+        display_report,
     )
     st.download_button(
         "Download evidence report (.md)",
@@ -421,8 +462,8 @@ if report_is_current:
 
     comparison_csv = build_comparison_csv(
         st.session_state.retrieval_question,
-        active_source_label,
-        report,
+        export_material_label,
+        display_report,
     )
     st.download_button(
         "Download comparison CSV (.csv)",
@@ -469,7 +510,7 @@ if report_is_current:
         tabs = st.tabs(["Combined search (recommended)", "Search by meaning", "Search by keywords"])
         for tab, method_name in zip(tabs, ["hybrid", "dense", "bm25"]):
             with tab:
-                results = report.get(method_name, [])
+                results = display_report.get(method_name, [])
                 if not results:
                     st.info(errors.get(method_name, "No passages were returned by this method."))
                 for item in results:
