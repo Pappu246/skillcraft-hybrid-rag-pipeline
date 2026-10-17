@@ -57,6 +57,12 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
     downloads = app.get("download_button")
     assert any(item.label == "Download evidence report (.md)" for item in downloads)
 
+    recent_button = next(item for item in app.button if item.label.startswith("Use recent query:"))
+    recent_button.click().run()
+    assert not app.exception
+    assert app.text_input[0].value == "binary search"
+    assert "Best matching passage" not in "\\n".join(str(item.value) for item in app.markdown)
+
     clear_button = next(item for item in app.button if item.label == "Clear search results")
     clear_button.click().run()
     assert not app.exception
