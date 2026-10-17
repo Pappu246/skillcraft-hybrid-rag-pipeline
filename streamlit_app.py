@@ -100,11 +100,24 @@ if "answer_text" not in st.session_state:
     st.session_state.answer_text = None
 if "answer_question" not in st.session_state:
     st.session_state.answer_question = ""
+if "recent_searches" not in st.session_state:
+    st.session_state.recent_searches = []
 
 
 def _use_suggestion(value: str) -> None:
     st.session_state.question_input = value
     st.session_state.answer_text = None
+
+
+def _use_history_entry(question: str, source_mode_value: str) -> None:
+    """Load a prior query into the current session without auto-running it."""
+    st.session_state.question_input = question
+    st.session_state.source_mode = source_mode_value
+    st.session_state.retrieval_report = None
+    st.session_state.retrieval_question = ""
+    st.session_state.retrieval_mode = ""
+    st.session_state.answer_text = None
+    st.session_state.answer_question = ""
 
 
 def _clear_search_results() -> None:
@@ -176,6 +189,7 @@ with st.sidebar:
     source_mode = st.radio(
         "What do you want to search?",
         ["Try the sample guide", "Search my own PDF"],
+        key="source_mode",
         help="Choose the sample guide to try the app right away, or upload a text-based PDF you have permission to use.",
     )
 
@@ -262,6 +276,24 @@ with st.sidebar:
     )
     st.caption("Your uploaded PDFs are processed in a temporary folder for extraction and are not added to the GitHub repository.")
 
+with st.sidebar:
+    history = st.session_state.recent_searches
+    if history:
+        with st.expander("Recent searches (this session)", expanded=False):
+            st.caption("Select a previous question to fill it in again. The search will run only after you press Find relevant passages.")
+            for index, item in enumerate(history):
+                st.caption(f"{item['source_label']} · {item['citation']}")
+                visible_question = item["question"]
+                if len(visible_question) > 48:
+                    visible_question = visible_question[:45] + "..."
+                st.button(
+                    f"Use recent query: {visible_question}",
+                    key=f"recent_query_{index}",
+                    on_click=_use_history_entry,
+                    args=(item["question"], item["source_mode"]),
+                    **_stretch_width(st.button),
+                )
+
 if source_mode == "Try the sample guide":
     active_index = st.session_state.sample_index
     source_ready = True
@@ -310,6 +342,28 @@ if submitted:
                 st.session_state.retrieval_mode = source_mode
                 st.session_state.answer_text = None
                 st.session_state.answer_question = ""
+
+                current_report = st.session_state.retrieval_report
+                best_method = next(
+                    (name for name in ("hybrid", "dense", "bm25") if current_report.get(name)),
+                    None,
+                )
+                best_items = current_report.get(best_method, []) if best_method else []
+                citation = best_items[0].get("citation", "No evidence citation") if best_items else "No evidence returned"
+                history_entry = {
+                    "question": question.strip(),
+                    "source_mode": source_mode,
+                    "source_label": active_source_label,
+                    "citation": str(citation),
+                }
+                previous = [
+                    item for item in st.session_state.recent_searches
+                    if not (
+                        item.get("question") == history_entry["question"]
+                        and item.get("source_mode") == history_entry["source_mode"]
+                    )
+                ]
+                st.session_state.recent_searches = [history_entry, *previous][:5]
             except Exception as exc:
                 logger.exception("Document search failed")
                 st.session_state.retrieval_report = None
