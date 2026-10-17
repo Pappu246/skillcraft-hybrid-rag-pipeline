@@ -24,6 +24,8 @@ jobs:
           # Keep the neutral evaluation record, but omit that personal final report.
           rm -f stage/reports/TASK01_FINAL_REPORT.md
           rm -f stage/reports/README.md
+          # Do not ship this one-off upstream packaging workflow inside the student source archive.
+          rm -f stage/.github/workflows/export-pinkesh-package.yml
           # Ensure development secrets, local indexes, and generated caches are not packaged.
           find stage -type d \( -name .git -o -name .venv -o -name __pycache__ -o -name .pytest_cache -o -name .rag_index \) -prune -exec rm -rf {} +
           find stage -type f \( -name '.env' -o -name '*.pyc' \) -delete
