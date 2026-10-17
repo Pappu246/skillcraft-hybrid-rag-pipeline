@@ -26,6 +26,20 @@ jobs:
           rm -f stage/reports/README.md
           # Do not ship this one-off upstream packaging workflow inside the student source archive.
           rm -f stage/.github/workflows/export-pinkesh-package.yml
+          # Replace the upstream final-report link with a note that the personalized report ships separately.
+          python - <<'PY'
+          from pathlib import Path
+          readme = Path("stage/README.md")
+          text = readme.read_text(encoding="utf-8")
+          start = text.find("## Final project report")
+          end = text.find("## Project deliverables", start)
+          if start >= 0 and end > start:
+              replacement = ("## Student internship report\n\n"
+                             "The personalized internship report for this student is supplied separately in the submission ZIP. "
+                             "See STUDENT_PROFILE.md for student details and source attribution.\n\n")
+              text = text[:start] + replacement + text[end:]
+          readme.write_text(text, encoding="utf-8")
+          PY
           # Ensure development secrets, local indexes, and generated caches are not packaged.
           find stage -type d \( -name .git -o -name .venv -o -name __pycache__ -o -name .pytest_cache -o -name .rag_index \) -prune -exec rm -rf {} +
           find stage -type f \( -name '.env' -o -name '*.pyc' \) -delete
