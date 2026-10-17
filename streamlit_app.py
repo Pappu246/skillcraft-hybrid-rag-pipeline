@@ -286,6 +286,8 @@ with st.expander("Recorded evaluation results (advanced)"):
 st.divider()
 st.markdown(
     '<p class="subtle">SkillCraft Technology · AI Engineering Internship · Task 01 · '
-    '<a href="https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline" target="_blank">View the source code</a></p>',
+    'Student: Pinkesh Kumar · Enrollment: 25TEC2CSML138 · '
+    '<a href="https://github.com/pinkeshkumar-ML" target="_blank">Student GitHub profile</a> · '
+    '<a href="https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline" target="_blank">Upstream source repository</a></p>',
     unsafe_allow_html=True,
 )
