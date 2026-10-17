@@ -301,3 +301,24 @@ def test_filter_comparison_report_by_source_all_sources_keeps_all_method_results
     assert filtered["dense"] == report["dense"]
     assert filtered["bm25"] == []
     assert filtered is not report
+
+def test_filtered_comparison_csv_contains_only_the_selected_source():
+    from rag_pipeline.demo import build_comparison_csv, filter_comparison_report_by_source
+
+    report = {
+        "hybrid": [
+            {"source": "chapter-a.pdf", "page": 1, "citation": "[chapter-a.pdf, p. 1]", "text": "Alpha evidence", "rank": 1, "score": 0.9},
+            {"source": "chapter-b.pdf", "page": 2, "citation": "[chapter-b.pdf, p. 2]", "text": "Beta evidence", "rank": 2, "score": 0.8},
+        ],
+        "dense": [{"source": "chapter-b.pdf", "page": 2, "citation": "[chapter-b.pdf, p. 2]", "text": "Beta semantic evidence", "rank": 1, "score": 0.7}],
+        "bm25": [],
+        "_errors": {},
+    }
+
+    filtered = filter_comparison_report_by_source(report, "chapter-a.pdf")
+    csv_text = build_comparison_csv("query", "chapter-a.pdf", filtered)
+
+    assert "Alpha evidence" in csv_text
+    assert "chapter-a.pdf" in csv_text
+    assert "Beta evidence" not in csv_text
+    assert "chapter-b.pdf" not in csv_text
