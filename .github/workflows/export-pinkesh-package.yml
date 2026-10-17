@@ -1,0 +1,40 @@
+name: Build Pinkesh source package
+
+on:
+  push:
+    branches:
+      - export/pinkesh-kumar-package
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out personalized branch
+        uses: actions/checkout@v4
+      - name: Build source ZIP without old personal report
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist stage
+          git archive --format=tar HEAD | tar -xf - -C stage
+          # The upstream report includes another student's declaration/name.
+          # Keep the neutral evaluation record, but omit that personal final report.
+          rm -f stage/reports/TASK01_FINAL_REPORT.md
+          rm -f stage/reports/README.md
+          # Ensure development secrets, local indexes, and generated caches are not packaged.
+          find stage -type d \( -name .git -o -name .venv -o -name __pycache__ -o -name .pytest_cache -o -name .rag_index \) -prune -exec rm -rf {} +
+          find stage -type f \( -name '.env' -o -name '*.pyc' \) -delete
+          zip -qr dist/SkillCraft_Hybrid_RAG_Source_Pinkesh_Kumar_25TEC2CSML138.zip stage
+          unzip -t dist/SkillCraft_Hybrid_RAG_Source_Pinkesh_Kumar_25TEC2CSML138.zip
+          echo "ZIP contents:"
+          unzip -Z1 dist/SkillCraft_Hybrid_RAG_Source_Pinkesh_Kumar_25TEC2CSML138.zip | head -60
+      - name: Upload source ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: pinkesh-hybrid-rag-source-25TEC2CSML138
+          path: dist/SkillCraft_Hybrid_RAG_Source_Pinkesh_Kumar_25TEC2CSML138.zip
+          if-no-files-found: error
+          retention-days: 7
