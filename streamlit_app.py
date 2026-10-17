@@ -74,8 +74,8 @@ st.markdown(
     </style>
     <div class="hero">
       <div class="hero-kicker">SkillCraft Technology · AI Engineering · Task 01</div>
-      <h1>Find answers in your documents</h1>
-      <p>Ask a question in everyday language. SkillCraft finds relevant passages and shows exactly which page they came from, so you can check the source yourself.</p>
+      <h1>Find cited evidence in your documents</h1>
+      <p>Search the built-in guide or your own text-based PDFs. Each result includes a source and page citation so you can verify it. AI-written responses are optional and require a configured model endpoint.</p>
     </div>
     """,
     unsafe_allow_html=True,

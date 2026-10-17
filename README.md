@@ -2,7 +2,7 @@
 
 **SkillCraft Technology — AI Engineering Internship, Task 01**
 
-A practical Retrieval-Augmented Generation (RAG) baseline that compares BM25 keyword retrieval, dense vector retrieval, and hybrid retrieval, optionally reranks candidates, and returns source/page citations with generated answers.
+A practical document-grounded retrieval pipeline that compares BM25 keyword retrieval, dense vector retrieval, and hybrid retrieval, optionally reranks candidates, and returns source/page-cited evidence. AI-written answers are optional and require an explicitly configured provider.
 
 > This is an internship/demo baseline. Evaluation figures below are specific to the included labelled set and are not claims of production-grade accuracy.
 

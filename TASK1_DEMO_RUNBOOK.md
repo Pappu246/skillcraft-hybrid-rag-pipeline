@@ -4,7 +4,7 @@ Use this runbook to demonstrate the actual Hybrid RAG retrieval pipeline. This i
 
 ## What the audience should see
 
-1. The app starts with an original built-in Data Structures guide; no document upload or model API key is required.
+1. The app starts with an original built-in Data Structures guide; no document upload or model API key is required. It returns cited evidence by default, not an AI-written answer; answer generation is optional and only appears when a model endpoint is configured.
 2. Choose one of the plain-language example questions or type your own question.
 3. Compare the same question across BM25 keyword retrieval, dense semantic retrieval, and Hybrid RRF.
 4. Show the top matching passage first, explain its source/page citation, then expand the comparison section to show keyword, meaning, and combined search.
