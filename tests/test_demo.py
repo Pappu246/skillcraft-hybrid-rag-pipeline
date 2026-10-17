@@ -210,7 +210,7 @@ def test_build_comparison_csv_preserves_citations_and_reports_method_failures():
             "source": "guide.pdf",
             "page": 2,
             "citation": "[guide.pdf, p. 2]",
-            "text": 'A comma, quoted phrase ("example"), and newline.\\nSecond line.',
+            "text": 'A comma, quoted phrase ("example"), and newline.\nSecond line.',
             "method": "hybrid",
         }],
         "dense": [],
@@ -239,7 +239,7 @@ def test_build_comparison_csv_preserves_citations_and_reports_method_failures():
     assert rows[0]["question"] == "How does this work?"
     assert rows[0]["selected_material"] == "My notes"
     assert rows[0]["citation"] == "[guide.pdf, p. 2]"
-    assert rows[0]["passage"] == 'A comma, quoted phrase ("example"), and newline.\\nSecond line.'
+    assert rows[0]["passage"] == 'A comma, quoted phrase ("example"), and newline.\nSecond line.'
     assert rows[1]["search_method"] == "Search by meaning (Dense)"
     assert rows[1]["status"] == "error"
     assert rows[1]["retrieval_note"] == "Semantic model unavailable."
