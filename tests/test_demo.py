@@ -258,3 +258,46 @@ def test_build_comparison_csv_marks_empty_methods_without_errors_as_no_results()
     )))
     assert len(rows) == 3
     assert all(row["status"] == "no_results" for row in rows)
+
+def test_filter_comparison_report_by_source_preserves_only_matching_passages_and_errors():
+    from rag_pipeline.demo import filter_comparison_report_by_source
+
+    report = {
+        "hybrid": [
+            {"source": "chapter-a.pdf", "page": 1, "citation": "[chapter-a.pdf, p. 1]"},
+            {"source": "chapter-b.pdf", "page": 3, "citation": "[chapter-b.pdf, p. 3]"},
+        ],
+        "dense": [
+            {"source": "chapter-b.pdf", "page": 4, "citation": "[chapter-b.pdf, p. 4]"},
+        ],
+        "bm25": [],
+        "_errors": {"bm25": "Keyword search could not complete."},
+        "request_id": "test-request",
+    }
+
+    filtered = filter_comparison_report_by_source(report, "chapter-a.pdf")
+
+    assert filtered["hybrid"] == [report["hybrid"][0]]
+    assert filtered["dense"] == []
+    assert filtered["bm25"] == []
+    assert filtered["_errors"] == {"bm25": "Keyword search could not complete."}
+    assert filtered["request_id"] == "test-request"
+    assert len(report["hybrid"]) == 2  # Filtering must not mutate the original report.
+
+
+def test_filter_comparison_report_by_source_all_sources_keeps_all_method_results():
+    from rag_pipeline.demo import filter_comparison_report_by_source
+
+    report = {
+        "hybrid": [{"source": "one.pdf"}],
+        "dense": [{"source": "two.pdf"}],
+        "bm25": [],
+        "_errors": {},
+    }
+
+    filtered = filter_comparison_report_by_source(report, None)
+
+    assert filtered["hybrid"] == report["hybrid"]
+    assert filtered["dense"] == report["dense"]
+    assert filtered["bm25"] == []
+    assert filtered is not report
