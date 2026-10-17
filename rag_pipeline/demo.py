@@ -239,6 +239,7 @@ def compare_retrievers(index: Any, question: str, top_k: int = 5) -> dict[str, A
     report["_errors"] = errors
     return report
 
+
 def filter_comparison_report_by_source(
     report: dict[str, Any],
     source: str | None,
