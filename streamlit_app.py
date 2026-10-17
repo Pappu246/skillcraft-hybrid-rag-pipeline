@@ -12,6 +12,7 @@ import streamlit as st
 from rag_pipeline.core import MAX_PDF_PAGES, Chunk, SearchResult, generate_answer
 from rag_pipeline.demo import (
     MAX_UPLOAD_BYTES,
+    build_comparison_csv,
     build_index_from_uploads,
     build_sample_index,
     compare_retrievers,
@@ -417,6 +418,21 @@ if report_is_current:
         help="Export the question, source/page citations, retrieved passages, and any retrieval warnings.",
     )
     st.caption("The export contains retrieved evidence and citations; it is not a certified answer.")
+
+    comparison_csv = build_comparison_csv(
+        st.session_state.retrieval_question,
+        active_source_label,
+        report,
+    )
+    st.download_button(
+        "Download comparison CSV (.csv)",
+        data=comparison_csv,
+        file_name="skillcraft-retrieval-comparison.csv",
+        mime="text/csv",
+        **_stretch_width(st.download_button),
+        help="Open in Excel to compare ranks, scores, citations, passages, and method failures.",
+    )
+    st.caption("CSV includes results or an explicit error/no-results row for each retrieval method.")
 
     has_generation = all(os.getenv(key) for key in ("RAG_API_KEY", "RAG_API_BASE_URL", "RAG_MODEL"))
     with st.expander("Would you like an AI-written response?"):

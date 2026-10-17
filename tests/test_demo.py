@@ -196,3 +196,65 @@ def test_comparison_reuses_single_dense_query_embedding_for_hybrid():
     assert encoder.query_calls == 1
     assert report["hybrid"]
     assert report["hybrid"][0]["citation"] == "[guide.pdf, p. 1]"
+
+
+def test_build_comparison_csv_preserves_citations_and_reports_method_failures():
+    import csv
+    import io
+    from rag_pipeline.demo import build_comparison_csv
+
+    report = {
+        "hybrid": [{
+            "rank": 1,
+            "score": 0.91,
+            "source": "guide.pdf",
+            "page": 2,
+            "citation": "[guide.pdf, p. 2]",
+            "text": 'A comma, quoted phrase ("example"), and newline.\nSecond line.',
+            "method": "hybrid",
+        }],
+        "dense": [],
+        "bm25": [{
+            "rank": 1,
+            "score": 2.4,
+            "source": "guide.pdf",
+            "page": 3,
+            "citation": "[guide.pdf, p. 3]",
+            "text": "Keyword evidence.",
+            "method": "bm25",
+        }],
+        "_errors": {"dense": "Semantic model unavailable."},
+    }
+
+    exported = build_comparison_csv(
+        "  How does this work?  ",
+        "My notes",
+        report,
+    )
+    rows = list(csv.DictReader(io.StringIO(exported)))
+
+    assert len(rows) == 3
+    assert rows[0]["search_method"] == "Combined search (Hybrid RRF)"
+    assert rows[0]["status"] == "result"
+    assert rows[0]["question"] == "How does this work?"
+    assert rows[0]["selected_material"] == "My notes"
+    assert rows[0]["citation"] == "[guide.pdf, p. 2]"
+    assert rows[0]["passage"] == 'A comma, quoted phrase ("example"), and newline.\nSecond line.'
+    assert rows[1]["search_method"] == "Search by meaning (Dense)"
+    assert rows[1]["status"] == "error"
+    assert rows[1]["retrieval_note"] == "Semantic model unavailable."
+    assert rows[2]["status"] == "result"
+    assert rows[2]["source"] == "guide.pdf"
+    assert rows[2]["page"] == "3"
+
+
+def test_build_comparison_csv_marks_empty_methods_without_errors_as_no_results():
+    import csv
+    import io
+    from rag_pipeline.demo import build_comparison_csv
+
+    rows = list(csv.DictReader(io.StringIO(
+        build_comparison_csv("question", "Sample", {"hybrid": [], "dense": [], "bm25": []})
+    )))
+    assert len(rows) == 3
+    assert all(row["status"] == "no_results" for row in rows)

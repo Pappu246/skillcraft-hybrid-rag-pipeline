@@ -56,6 +56,7 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
 
     downloads = app.get("download_button")
     assert any(item.label == "Download evidence report (.md)" for item in downloads)
+    assert any(item.label == "Download comparison CSV (.csv)" for item in downloads)
 
     recent_button = next(item for item in app.button if item.label.startswith("Use recent query:"))
     recent_button.click().run()
