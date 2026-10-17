@@ -6,7 +6,9 @@ soon as indexing finishes.
 """
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import logging
 from pathlib import Path, PurePosixPath
 import tempfile
@@ -107,6 +109,73 @@ def build_index_from_uploads(uploaded_files: list[Any]) -> tuple[HybridIndex, in
         chunks = ingest_pdfs(temporary)
         index = HybridIndex(chunks)
     return index, len(chunks)
+
+
+def build_comparison_csv(
+    question: str,
+    source_label: str,
+    report: dict[str, Any],
+) -> str:
+    """Serialize retrieval results and method failures to an Excel-friendly CSV."""
+    method_labels = {
+        "hybrid": "Combined search (Hybrid RRF)",
+        "dense": "Search by meaning (Dense)",
+        "bm25": "Search by keywords (BM25)",
+    }
+    fields = [
+        "question",
+        "selected_material",
+        "search_method",
+        "status",
+        "rank",
+        "score",
+        "source",
+        "page",
+        "citation",
+        "passage",
+        "retrieval_note",
+    ]
+    rows: list[dict[str, object]] = []
+    errors = report.get("_errors", {})
+
+    for method in ("hybrid", "dense", "bm25"):
+        results = report.get(method, [])
+        if results:
+            for item in results:
+                rows.append({
+                    "question": question.strip(),
+                    "selected_material": source_label,
+                    "search_method": method_labels[method],
+                    "status": "result",
+                    "rank": item.get("rank", ""),
+                    "score": item.get("score", ""),
+                    "source": item.get("source", ""),
+                    "page": item.get("page", ""),
+                    "citation": item.get("citation", "Citation unavailable"),
+                    "passage": str(item.get("text", "")).strip(),
+                    "retrieval_note": "",
+                })
+        else:
+            error = str(errors.get(method, "")).strip()
+            rows.append({
+                "question": question.strip(),
+                "selected_material": source_label,
+                "search_method": method_labels[method],
+                "status": "error" if error else "no_results",
+                "rank": "",
+                "score": "",
+                "source": "",
+                "page": "",
+                "citation": "",
+                "passage": "",
+                "retrieval_note": error,
+            })
+
+    buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(buffer, fieldnames=fields, lineterminator="\\n")
+    writer.writeheader()
+    writer.writerows(rows)
+    return buffer.getvalue()
 
 
 def compare_retrievers(index: Any, question: str, top_k: int = 5) -> dict[str, Any]:
