@@ -32,6 +32,8 @@ streamlit run streamlit_app.py
 
 The first dense query downloads the Sentence-Transformers model and may take longer. The demo disables Streamlit's file watcher to prevent noisy Transformers-module tracebacks; restart the app after pulling updates. Retrieval comparison can run without `RAG_API_KEY`, `RAG_API_BASE_URL`, or `RAG_MODEL`. Without those settings, the UI labels retrieved passages as evidence and does not claim model generation. If semantic search fails, keyword results can still appear and are labelled as a BM25 fallback. When credentials are configured, generated responses are requested only after the user explicitly selects Generate; the question and retrieved passages are sent to the configured provider, and citations are validated before display.
 
+Recent searches are kept in the current browser session only (up to five). Expand **Recent searches (this session)** and choose a query to refill the question field; it does not execute until you press **Find relevant passages**. The history is cleared when the Streamlit session ends.
+
 After a search, use **Download evidence report (.md)** to save the question, selected source, retrieved passages, citations, and retrieval warnings. **Clear search results** clears the question/result/answer while keeping an already-prepared PDF index ready for the next query. The export is retrieved evidence, not a guarantee that the content fully or correctly answers the question.
 
 ## Upload and privacy checks
