@@ -238,3 +238,33 @@ def compare_retrievers(index: Any, question: str, top_k: int = 5) -> dict[str, A
 
     report["_errors"] = errors
     return report
+
+def filter_comparison_report_by_source(
+    report: dict[str, Any],
+    source: str | None,
+) -> dict[str, Any]:
+    """Return a source-scoped view without mutating the original retrieval report.
+
+    The filter is presentation-only: it does not rerun retrieval or change ranking.
+    Method errors remain attached so exports can distinguish an unavailable method
+    from a method that returned no passages for the selected source.
+    """
+    method_names = ("hybrid", "dense", "bm25")
+    filtered: dict[str, Any] = {
+        key: value for key, value in report.items() if key not in method_names
+    }
+    for method in method_names:
+        items = report.get(method, [])
+        if not isinstance(items, list):
+            items = []
+        if source:
+            items = [
+                item for item in items
+                if isinstance(item, dict) and str(item.get("source", "")) == source
+            ]
+        else:
+            items = list(items)
+        filtered[method] = items
+    errors = report.get("_errors", {})
+    filtered["_errors"] = dict(errors) if isinstance(errors, dict) else {}
+    return filtered
