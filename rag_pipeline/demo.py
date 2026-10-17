@@ -172,7 +172,7 @@ def build_comparison_csv(
             })
 
     buffer = io.StringIO(newline="")
-    writer = csv.DictWriter(buffer, fieldnames=fields, lineterminator="\\n")
+    writer = csv.DictWriter(buffer, fieldnames=fields, lineterminator="\n")
     writer.writeheader()
     writer.writerows(rows)
     return buffer.getvalue()
