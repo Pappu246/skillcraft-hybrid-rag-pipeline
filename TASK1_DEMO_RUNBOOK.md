@@ -34,7 +34,7 @@ The first dense query downloads the Sentence-Transformers model and may take lon
 
 Recent searches are kept in the current browser session only (up to five). Expand **Recent searches (this session)** and choose a query to refill the question field; it does not execute until you press **Find relevant passages**. The history is cleared when the Streamlit session ends.
 
-After a search, use **Download evidence report (.md)** to save the question, selected source, retrieved passages, citations, and retrieval warnings. **Clear search results** clears the question/result/answer while keeping an already-prepared PDF index ready for the next query. The export is retrieved evidence, not a guarantee that the content fully or correctly answers the question.
+After a search, use **Download evidence report (.md)** to save the question, selected source, retrieved passages, citations, and retrieval warnings. Use **Download comparison CSV (.csv)** to open a flat comparison in Excel: each row records its search method, status, rank, internal score, source, page citation, and passage; method failures are explicitly included as error rows. **Clear search results** clears the question/result/answer while keeping an already-prepared PDF index ready for the next query. The export is retrieved evidence, not a guarantee that the content fully or correctly answers the question.
 
 ## Upload and privacy checks
 
