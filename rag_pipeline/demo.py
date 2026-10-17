@@ -6,11 +6,15 @@ soon as indexing finishes.
 """
 from __future__ import annotations
 
+import hashlib
+import logging
 from pathlib import Path, PurePosixPath
 import tempfile
 from typing import Any
 
 from .core import Chunk, HybridIndex, ingest_pdfs
+
+logger = logging.getLogger(__name__)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 SAMPLE_SOURCE = "Built-in Data Structures Guide"
@@ -45,6 +49,14 @@ def build_sample_index() -> HybridIndex:
     return HybridIndex(build_sample_chunks())
 
 
+def upload_collection_signature(uploaded_files: list[Any] | None) -> tuple[tuple[str, str], ...]:
+    """Fingerprint selected upload names and bytes for Streamlit session-state checks."""
+    return tuple(
+        (str(upload.name), hashlib.sha256(upload.getvalue()).hexdigest())
+        for upload in (uploaded_files or [])
+    )
+
+
 def save_uploaded_pdfs(uploaded_files: list[Any], output_dir: str | Path) -> list[Path]:
     """Safely copy uploaded PDF bytes under sanitized, unique filenames."""
     if not uploaded_files:
@@ -70,6 +82,8 @@ def save_uploaded_pdfs(uploaded_files: list[Any], output_dir: str | Path) -> lis
         total_bytes += len(payload)
         if total_bytes > MAX_UPLOAD_BYTES:
             raise ValueError("Combined uploads must be 20 MB or smaller.")
+        if b"%PDF-" not in bytes(payload[:1024]):
+            raise ValueError(f"The uploaded file does not have a valid PDF header: {filename}")
 
         original = Path(filename)
         candidate = filename
@@ -95,20 +109,63 @@ def build_index_from_uploads(uploaded_files: list[Any]) -> tuple[HybridIndex, in
     return index, len(chunks)
 
 
-def compare_retrievers(index: Any, question: str, top_k: int = 5) -> dict[str, list[dict[str, Any]]]:
-    """Return top-k source-bearing result dictionaries for each retrieval method."""
-    clean_question = question.strip()
+def compare_retrievers(index: Any, question: str, top_k: int = 5) -> dict[str, Any]:
+    """Run retrieval independently so one optional method cannot hide others.
+
+    ``_errors`` contains safe, user-facing method failures. Detailed exceptions
+    are logged server-side without document or question content.
+    """
+    clean_question = question.strip() if isinstance(question, str) else ""
     if not clean_question:
         raise ValueError("Enter a question before running retrieval.")
     if type(top_k) is not int or not 1 <= top_k <= 10:
         raise ValueError("top_k must be an integer between 1 and 10.")
 
-    methods = {
-        "bm25": index.search_bm25,
-        "dense": index.search_dense,
-        "hybrid": index.search_hybrid,
-    }
-    return {
-        name: [result.to_dict() for result in method(clean_question, top_k=top_k)]
-        for name, method in methods.items()
-    }
+    report: dict[str, Any] = {"bm25": [], "dense": [], "hybrid": []}
+    errors: dict[str, str] = {}
+
+    def run(name: str, method, requested_k: int) -> list[Any]:
+        try:
+            return method(clean_question, top_k=requested_k)
+        except Exception as exc:
+            # Model/dependency stacks expose heterogeneous exceptions. Log a
+            # concise diagnostic and keep independent retrieval methods usable.
+            logger.warning("Retrieval method %s failed (%s): %s", name, type(exc).__name__, exc)
+            if name in {"dense", "hybrid"}:
+                errors[name] = (
+                    "Semantic search is unavailable right now. Check model installation/network access, "
+                    "then retry; keyword results may still be available."
+                )
+            else:
+                errors[name] = "Keyword search could not complete. Check the index and try again."
+            return []
+
+    if isinstance(index, HybridIndex):
+        # Use a shared candidate set so semantic query embeddings are computed
+        # once, not again inside hybrid search. Keep a wider candidate pool for RRF.
+        candidate_k = max(20, top_k)
+        lexical = run("bm25", index.search_bm25, candidate_k)
+        semantic = run("dense", index.search_dense, candidate_k)
+        report["bm25"] = [result.to_dict() for result in lexical[:top_k]]
+        report["dense"] = [result.to_dict() for result in semantic[:top_k]]
+        if not errors:
+            fused = index.fuse_rrf([lexical, semantic], top_k=top_k)
+            report["hybrid"] = [result.to_dict() for result in fused]
+        else:
+            errors["hybrid"] = "Hybrid search is unavailable because one of its retrieval methods failed."
+    else:
+        # Generic test doubles and alternate index adapters may expose their
+        # own fusion implementation instead of the built-in shared-candidate path.
+        methods = {
+            "bm25": index.search_bm25,
+            "dense": index.search_dense,
+            "hybrid": index.search_hybrid,
+        }
+        for name, method in methods.items():
+            if name == "hybrid" and "dense" in errors:
+                errors[name] = "Hybrid search is unavailable because dense semantic retrieval failed."
+                continue
+            report[name] = [result.to_dict() for result in run(name, method, top_k)]
+
+    report["_errors"] = errors
+    return report

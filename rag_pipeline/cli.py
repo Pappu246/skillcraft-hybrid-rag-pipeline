@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from .core import HybridIndex, format_context, generate_answer, ingest_pdfs, retrieve_comparison
+from .core import MAX_PDF_PAGES, HybridIndex, format_context, generate_answer, ingest_pdfs, retrieve_comparison
 from .evaluation import evaluate_retrieval_dataset
 
 app = typer.Typer(help="Hybrid RAG pipeline with source citations")
@@ -22,10 +22,11 @@ def ingest(
     index_dir: Path = typer.Option(Path(".rag_index"), "--index-dir", help="Local index directory"),
     chunk_size: int = typer.Option(900, min=100, help="Chunk size in characters"),
     overlap: int = typer.Option(150, min=0, help="Chunk overlap in characters"),
+    max_pages: int = typer.Option(MAX_PDF_PAGES, min=1, help="Maximum combined physical PDF pages to process"),
 ) -> None:
     """Extract PDF pages, chunk text, and save provenance metadata."""
-    chunks = ingest_pdfs(input, chunk_size=chunk_size, overlap=overlap)
-    HybridIndex(chunks).save(index_dir)
+    chunks = ingest_pdfs(input, chunk_size=chunk_size, overlap=overlap, max_pages=max_pages)
+    HybridIndex(chunks, chunk_size=chunk_size, overlap=overlap, max_pages=max_pages).save(index_dir)
     console.print(f"[green]Indexed {len(chunks)} chunks from PDFs in {input}.[/green]")
     console.print(f"Saved local chunk metadata to {index_dir / 'chunks.json'}")
 
@@ -39,15 +40,20 @@ def compare(
     output: Path | None = typer.Option(None, help="Optional JSON output path"),
 ) -> None:
     """Compare BM25, dense, and hybrid retrieval for one question."""
+    if not question.strip():
+        raise typer.BadParameter("question must not be blank")
     index = HybridIndex.load(index_dir)
     report = retrieve_comparison(index, question, top_k=top_k, repeats=repeats)
     table = Table(title="Retrieval comparison (latency is not an accuracy metric)")
     table.add_column("Method")
     table.add_column("Latency (ms)", justify="right")
     table.add_column("Top source chunks")
+    table.add_column("Status")
     for name, details in report["methods"].items():
         citations = ", ".join(item["citation"] for item in details["results"]) or "(none)"
-        table.add_row(name, str(details["latency_ms"]), citations)
+        latency = str(details["latency_ms"]) if details["latency_ms"] is not None else "unavailable"
+        status = details.get("error", "ready")
+        table.add_row(name, latency, citations, status)
     console.print(table)
     if output:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -101,10 +107,20 @@ def ask(
     rerank: bool = typer.Option(False, help="Use configured CrossEncoder reranker"),
 ) -> None:
     """Retrieve evidence and produce a cited answer when generation is configured."""
+    if not question.strip():
+        raise typer.BadParameter("question must not be blank")
     index = HybridIndex.load(index_dir)
-    results = index.search_hybrid(question, top_k=top_k, rerank=rerank)
+    retrieval_method = "Hybrid RRF"
+    try:
+        results = index.search_hybrid(question, top_k=top_k, rerank=rerank)
+    except Exception as exc:
+        retrieval_method = "BM25 fallback"
+        console.print(
+            f"[yellow]Hybrid search is unavailable ({exc}); showing keyword matches instead.[/yellow]"
+        )
+        results = index.search_bm25(question, top_k=top_k)
     answer = generate_answer(question, results)
-    console.print(Panel(answer, title="Answer with source evidence", expand=False))
+    console.print(Panel(answer, title=f"{retrieval_method} evidence", expand=False))
 
 
 if __name__ == "__main__":

@@ -16,6 +16,9 @@ A practical Retrieval-Augmented Generation (RAG) baseline that compares BM25 key
 - Optional OpenAI-compatible answer generation endpoint
 - Source citations in retrieved context and answer output
 - Retrieval comparison report and automated tests
+- Page-level duplicate suppression, deterministic ranking, and explicit empty-query/no-match behavior
+- Clear method-level fallbacks when semantic model loading fails, without mislabelling keyword results as hybrid
+- Optional answer-generation safeguards: untrusted evidence boundary, source-citation validation, and actionable provider errors
 
 ## Requirements
 - Python 3.10+
@@ -64,9 +67,9 @@ python -m pip install -r requirements.txt
 python -m streamlit run streamlit_app.py
 ```
 
-The app opens with an **original built-in Data Structures guide** so the demo works without uploading a document. The interface guides visitors through two steps: ask a question, then inspect the best matching passage and its page citation. Advanced retrieval comparisons and recorded metrics are tucked into expandable sections. Switch to **Upload your PDFs** to index text-based PDF files for that session (combined maximum 20 MB). Uploaded PDF bytes are written to a temporary directory only while text is extracted; the extracted chunks and index remain in the active Streamlit session. Do not upload confidential documents to a public hosted demo. Scanned PDFs need OCR before ingestion.
+The app opens with an **original built-in Data Structures guide** so the demo works without uploading a document. The interface guides visitors through two steps: ask a question, then inspect the best matching passage and its page citation. Advanced retrieval comparisons and recorded metrics are tucked into expandable sections. Switch to **Upload your PDFs** to index text-based PDF files for that session (combined maximum 20 MB and 2,000 physical pages). Uploads must have a `.pdf` filename and a PDF header; encrypted, malformed, empty, and image-only PDFs receive an actionable error. Uploaded PDF bytes are written to a temporary directory only while text is extracted; the extracted chunks and index remain in the active Streamlit session. Changing the selected upload invalidates results until that selection is indexed. Do not upload confidential documents to a public hosted demo. Scanned PDFs need OCR before ingestion.
 
-The interface leads with the best combined-search passage, explains citations in plain language, and places BM25, dense, and hybrid RRF comparison details in an expandable section. Source filenames and 1-based physical PDF page citations remain visible. The “Generate cited answer” action calls an OpenAI-compatible model only when `RAG_API_KEY`, `RAG_API_BASE_URL`, and `RAG_MODEL` are set. Without those settings, it deliberately labels the output as retrieved evidence context, not a generated answer.
+The interface leads with the best available passage, explains citations in plain language, and places BM25, dense, and hybrid RRF comparison details in an expandable section. Source filenames and 1-based physical PDF page citations remain visible. If semantic-model loading fails, keyword retrieval can still be shown and is labelled as a BM25 fallback rather than hybrid search. The “Generate cited answer” action calls an OpenAI-compatible model only when `RAG_API_KEY`, `RAG_API_BASE_URL`, and `RAG_MODEL` are set and you explicitly choose Generate. The question and retrieved passages are then sent to that configured provider. Without those settings, search remains local and the app labels its output as retrieved evidence, not a generated answer. Generated citations are checked against the retrieved pages; if the model invents a page citation, that response is withheld.
 
 For a hosted demo, use a Python hosting service that supports Streamlit and the dependencies in `requirements.txt`. The first dense query downloads the Sentence-Transformers embedding model, so initial load can take longer than later queries.
 
@@ -99,7 +102,14 @@ pytest -q
 rag-pipeline evaluate --dataset evaluation_datasets/module1.json --index-dir .rag_index --top-k 5 --output reports/module1_evaluation.json
 ```
 
-The report compares BM25, dense, and hybrid retrieval using page-level Recall@k, MRR@k, and nDCG@k, with macro averages across questions and per-question results in JSON. Multiple chunks from the same page collapse to a single page rank. The label set is a useful document-specific evaluation baseline, not an independent benchmark or proof of general performance. Before using it for a formal claim, review the page labels and extend it with representative questions and all materially relevant pages from your own document/version. These metrics measure page retrieval, not answer-generation correctness.
+The report compares BM25, dense, and hybrid retrieval using page-level Recall@k, MRR@k, and nDCG@k, with macro averages across questions and per-question results in JSON. Multiple chunks from the same page collapse to a single page rank. The JSON also records the embedding/reranker names, chunk size and overlap, page limit, RRF constant, index chunk count, source filenames, question count, and SHA-256 fingerprints of the indexed chunk content and normalized evaluation labels to help identify both corpus and dataset. The label set is a useful document-specific evaluation baseline, not an independent benchmark or proof of general performance. Before using it for a formal claim, review the page labels and extend it with representative questions and all materially relevant pages from your own document/version. These metrics measure page retrieval, not answer-generation correctness.
+
+## Troubleshooting
+
+- **First semantic search is slow or unavailable:** the Sentence-Transformers model is loaded lazily and its weights must be available locally or downloadable from Hugging Face. Retry with network access or a populated model cache. BM25 keyword results remain available when the optional semantic method fails.
+- **“No selectable text” or OCR guidance:** the PDF is scanned/image-only or its text layer is empty. Run OCR with a trusted local tool, save a searchable PDF, then upload it again.
+- **Encrypted, malformed, or unsupported PDF:** remove password protection, re-export the PDF from a trusted source, and check the file opens in a standard viewer. A `.pdf` extension alone is not sufficient.
+- **Generated answer unavailable:** check `RAG_API_BASE_URL`, `RAG_API_KEY`, and `RAG_MODEL`; provider credentials are optional for retrieval. HTTP 401/403 indicates credentials, 429 indicates rate limiting, and timeout/network errors can be retried.
 
 ## Current limitations
 - PDF extraction quality depends on whether the PDF contains selectable text; scanned PDFs need OCR.
@@ -110,7 +120,7 @@ The report compares BM25, dense, and hybrid retrieval using page-level Recall@k,
 
 ## Final project report
 
-The Task 01 report covering architecture, user interface, measured retrieval evaluation, test verification, limitations, and deployment status is available at [`reports/TASK01_FINAL_REPORT.md`](reports/TASK01_FINAL_REPORT.md).
+The Task 01 report covering architecture, user interface, measured retrieval evaluation, test verification, limitations, and deployment status is available at [`reports/TASK01_FINAL_REPORT.md`](reports/TASK01_FINAL_REPORT.md). The follow-up implementation audit, regression findings, current test evidence, and deployment verification limits are recorded in [`reports/ENGINEERING_AUDIT.md`](reports/ENGINEERING_AUDIT.md).
 
 ## Project deliverables
 - Source code and tests
