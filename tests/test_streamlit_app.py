@@ -107,11 +107,18 @@ def test_streamlit_source_filter_limits_visible_evidence_and_resets_for_new_quer
     app.get("form_submit_button")[0].click().run()
 
     assert not app.exception
+    app.session_state["answer_text"] = "Answer based on all sources."
+    app.session_state["answer_question"] = "find evidence"
+    app.run()
+    assert any("Answer based on all sources." in str(item.value) for item in app.text)
+
     source_filter = next(item for item in app.selectbox if item.label == "Limit evidence to source")
     assert source_filter.value == "All sources"
     source_filter.select("beta.pdf").run()
 
     assert not app.exception
+    assert app.session_state["answer_text"] is None
+    assert app.session_state["answer_question"] == ""
     rendered = "\\n".join(
         [str(item.value) for item in app.markdown]
         + [str(item.value) for item in app.text]
