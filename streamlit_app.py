@@ -134,6 +134,12 @@ def _clear_search_results() -> None:
     st.session_state.retrieval_source_filter = "All sources"
 
 
+def _clear_generated_answer_on_source_filter_change() -> None:
+    """Clear a generated response when the visible evidence scope changes."""
+    st.session_state.answer_text = None
+    st.session_state.answer_question = ""
+
+
 def _build_evidence_markdown(
     question: str, source_label: str, report: dict[str, object]
 ) -> str:
@@ -399,6 +405,7 @@ if report_is_current:
             "Limit evidence to source",
             options=source_filter_options,
             key="retrieval_source_filter",
+            on_change=_clear_generated_answer_on_source_filter_change,
             help=(
                 "Filter the visible passages and downloads to one PDF. Retrieval scores and ranks "
                 "are unchanged; an optional generated response uses the filtered evidence."
