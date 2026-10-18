@@ -26,8 +26,8 @@ The current deployment source includes the merged CSV-export implementation. How
 
 - Exact head commit: `ba7e5a9bf8468b56510be0a7ea83d0ba54fb1a50`.
 - GitHub Actions run [#39135709243](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39135709243) passed; Python compile check passed; `pytest -q` reported **56 passed in 1.62s**. The test covers clearing a cached generated answer when the source filter changes.
-- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` was registered for this exact head. Although deployment metadata still reported `BUILDING` at the last check, the exact preview URL served the Streamlit HTML shell with HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
-- These GET checks do not verify browser/WebSocket interaction with PDF upload, source selection, or export controls. A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; do not bypass the deployment limit. The older READY feature deployment points to a different commit and does not validate this head.
+- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` is now `READY` for this exact head. The exact preview homepage returned HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
+- These GET checks do not verify browser/WebSocket interaction with PDF upload, source selection, generated-answer invalidation, or export controls. A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; the Git-linked preview has since reached `READY`. The older READY feature deployment points to a different commit and does not validate this head.
 
 ### Release gate for PR #16
 
