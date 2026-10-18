@@ -26,8 +26,8 @@ The current deployment source includes the merged CSV-export implementation. How
 
 - Exact head commit: `ba7e5a9bf8468b56510be0a7ea83d0ba54fb1a50`.
 - GitHub Actions run [#39135709243](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39135709243) passed; Python compile check passed; `pytest -q` reported **56 passed in 1.62s**. The test covers clearing a cached generated answer when the source filter changes.
-- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` was registered for this exact head but remains `BUILDING`. The preview health fetch was redirected to `/sso-api`, so the deployment has not been functionally verified.
-- A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; do not bypass the deployment limit. The older READY feature deployment points to a different commit and does not validate this head.
+- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` was registered for this exact head. Although deployment metadata still reported `BUILDING` at the last check, the exact preview URL served the Streamlit HTML shell with HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
+- These GET checks do not verify browser/WebSocket interaction with PDF upload, source selection, or export controls. A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; do not bypass the deployment limit. The older READY feature deployment points to a different commit and does not validate this head.
 
 ### Release gate for PR #16
 
@@ -39,4 +39,4 @@ The corresponding `Module1.pdf` was not available in the checked workspace. The 
 
 ## Release decision
 
-Production is responding and is running main commit `63f3e35`. The source-filter change has passing automated tests but is **not shipped**: its exact-head preview remains `BUILDING`, and the protected health fetch redirected to `/sso-api`, so real UI verification is incomplete. Do not bypass Vercel deployment limits, change billing without authorization, or redirect production to an older preview.
+Production is responding and is running main commit `63f3e35`. The source-filter change has passing automated tests and its exact-head preview now responds with HTTP 200 for both the homepage and health endpoint, but it is **not shipped** because real browser/WebSocket interaction has not been verified. Do not bypass Vercel deployment limits, change billing without authorization, or redirect production to an older preview.
