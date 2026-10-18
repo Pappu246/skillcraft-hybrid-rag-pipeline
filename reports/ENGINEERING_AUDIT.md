@@ -27,11 +27,11 @@ These checks establish that the production deployment is ready and its health en
 
 [PR #16 — Filter retrieved evidence by PDF source](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/16) remains draft and unmerged.
 
-- Exact PR head: `03d36a51b060bc3d2969ccbfac39abc5605ff2cd`.
-- GitHub Actions run [#39055539663](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39055539663) completed successfully. Python compile check passed and `pytest -q` reported **56 passed**.
-- The Vercel check for this exact head is failing because the preview/build request hit Vercel's daily deployment limit. A direct preview deployment attempt returned HTTP 402 `payment_required` / `api-deployments-free-per-day`.
-- An older READY feature-branch deployment points to an earlier commit, so it is not evidence that the exact current PR head works in a hosted browser.
-- Keep this PR draft/unmerged until an exact-head preview can be created and the source selector, query/history reset behavior, filtered Markdown/CSV exports, and method-error handling are tested in the real Streamlit UI.
+- Exact PR head: `ba7e5a9bf8468b56510be0a7ea83d0ba54fb1a50`.
+- GitHub Actions run [#39135709243](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39135709243) completed successfully. Python compile check passed and `pytest -q` reported **56 passed in 1.62s**. This head includes a regression test that verifies a cached generated answer is cleared when the source filter changes.
+- Vercel registered exact-head preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` for commit `ba7e5a9`, but it remains `BUILDING`. An HTTP check of that protected preview's health route was redirected to `/sso-api` and could not verify app health; no hosted interaction test has been completed.
+- The earlier direct preview request for the initial feature commit was rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`. The current Git-linked preview is now registered, but is not yet READY or functionally verified. The older READY feature-branch deployment is from a different commit and is not evidence for the exact current head.
+- Keep this PR draft/unmerged until the exact-head preview is accessible and READY, then test the source selector, stale-answer invalidation, query/history reset behavior, filtered Markdown/CSV exports, and method-error handling in the real Streamlit UI.
 
 Do not circumvent Vercel's deployment quota, change billing, redirect the production alias to an older preview, or claim the source-filter feature is released.
 

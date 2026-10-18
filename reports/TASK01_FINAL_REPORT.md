@@ -24,10 +24,10 @@ The current deployment source includes the merged CSV-export implementation. How
 
 [PR #16](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/16) adds filtering of retrieved passages and report/CSV output by selected PDF source. It remains draft and unmerged.
 
-- Exact head commit: `03d36a51b060bc3d2969ccbfac39abc5605ff2cd`.
-- GitHub Actions run [#39055539663](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39055539663) passed; Python compile check passed; `pytest -q` reported **56 passed**.
-- Vercel's check for this head is failing due to a deployment/build rate-limit blocker. The direct preview request returned HTTP 402 `payment_required` / `api-deployments-free-per-day`.
-- The available READY feature deployment is older than the exact head. Do not treat it as functional verification of the latest source-filter changes.
+- Exact head commit: `ba7e5a9bf8468b56510be0a7ea83d0ba54fb1a50`.
+- GitHub Actions run [#39135709243](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39135709243) passed; Python compile check passed; `pytest -q` reported **56 passed in 1.62s**. The test covers clearing a cached generated answer when the source filter changes.
+- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` was registered for this exact head but remains `BUILDING`. The preview health fetch was redirected to `/sso-api`, so the deployment has not been functionally verified.
+- A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; do not bypass the deployment limit. The older READY feature deployment points to a different commit and does not validate this head.
 
 ### Release gate for PR #16
 
@@ -39,4 +39,4 @@ The corresponding `Module1.pdf` was not available in the checked workspace. The 
 
 ## Release decision
 
-Production is responding and is running main commit `63f3e35`. The source-filter change has passing automated tests but is **not shipped**, because exact-head hosted UI verification is blocked by Vercel's daily deployment limit. Do not bypass that limit, change billing without authorization, or redirect production to an older preview.
+Production is responding and is running main commit `63f3e35`. The source-filter change has passing automated tests but is **not shipped**: its exact-head preview remains `BUILDING`, and the protected health fetch redirected to `/sso-api`, so real UI verification is incomplete. Do not bypass Vercel deployment limits, change billing without authorization, or redirect production to an older preview.
