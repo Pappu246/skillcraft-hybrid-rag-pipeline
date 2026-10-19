@@ -133,3 +133,26 @@ def test_streamlit_source_filter_limits_visible_evidence_and_resets_for_new_quer
     assert not app.exception
     source_filter = next(item for item in app.selectbox if item.label == "Limit evidence to source")
     assert source_filter.value == "All sources"
+
+    # Choosing a history entry clears the displayed report and resets the source scope.
+    source_filter.select("beta.pdf").run()
+    assert app.session_state["retrieval_source_filter"] == "beta.pdf"
+    history_button = next(item for item in app.button if item.label.startswith("Use recent query:"))
+    history_button.click().run()
+    assert not app.exception
+    assert app.session_state["retrieval_source_filter"] == "All sources"
+    assert app.session_state["retrieval_report"] is None
+
+    # Clearing a filtered result also returns the source scope to All sources.
+    app.text_input[0].set_value("clear reset question")
+    app.get("form_submit_button")[0].click().run()
+    assert not app.exception
+    source_filter = next(item for item in app.selectbox if item.label == "Limit evidence to source")
+    source_filter.select("beta.pdf").run()
+    assert not app.exception
+    assert app.session_state["retrieval_source_filter"] == "beta.pdf"
+    clear_button = next(item for item in app.button if item.label == "Clear search results")
+    clear_button.click().run()
+    assert not app.exception
+    assert app.session_state["retrieval_source_filter"] == "All sources"
+    assert app.session_state["retrieval_report"] is None
