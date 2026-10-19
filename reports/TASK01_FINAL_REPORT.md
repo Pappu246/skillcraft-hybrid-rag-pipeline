@@ -1,16 +1,42 @@
-## 11. Follow-up engineering audit and release status — 17 October 2026
+# Task 01 — Final Report and Release Status
 
-Detailed findings and verification limits are documented in [`reports/ENGINEERING_AUDIT.md`](ENGINEERING_AUDIT.md).
+Detailed verification limits and the deployment audit are documented in [`reports/ENGINEERING_AUDIT.md`](ENGINEERING_AUDIT.md).
 
-- **PDF/retrieval hardening:** [PR #9](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9) merged as `b4371a8`.
-- **Evidence export and clear-search control:** [PR #10](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10) merged as `933d709`.
-- **Recent search history:** [PR #11](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/11) merged as `48e545f`. History is limited to five entries in the current Streamlit session.
-- **Comparison CSV export:** [PR #13](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/13) merged as `1c370c3`. CSV contains query, selected material, search method, status, rank, score, source, page, citation, passage and explicit error/no-results rows. Proper CSV quoting covers passages with commas, quotes, and embedded newlines.
-- **Evidence-first UI wording:** [PR #14](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/14) merged as `2d813bf`. The hero now says “Find cited evidence in your documents” and explains that AI-written answers are optional; default output is retrieved evidence.
-- **CI:** the PR-specific run [#39051120832](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39051120832), post-merge main run [#39051290703](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39051290703), and latest main run [#39051804509](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39051804509) all passed.
-- **Current production status:** the latest production deployment listed by Vercel is `dpl_EBUQC7mJdeRqp4W34eKfjQyWGQKN` at commit `f255792`. Canonical root returned HTTP 200 and `/_stcore/health` returned `ok`. The CSV feature from main commit `1c370c3` is merged and CI-passed but **not live yet**.
-- **Deployment blocker:** Vercel rejected a new deployment request with HTTP 402 `payment_required`, reason `api-deployments-free-per-day` (daily deployment limit, retry in 86400 seconds). The project must wait for quota reset or an authorized team/plan resolution; no aliases were redirected to an older preview to pretend the new commit was live.
-- **Interactive verification:** the preview requires Vercel SSO, so this verifier did not run a real browser/WebSocket RAG query against the private preview. Streamlit AppTest covers the query/fallback UI, Markdown export, recent-query selection, clear-results, and CSV export helper. HTTP health success is not proof that every interactive path works.
-- **Evaluation:** no fresh Module 1 metrics are claimed because the matching `Module1.pdf` is absent. The 34-question scores remain historical document-specific retrieval metrics, not generated-answer correctness.
+## Implemented and merged
 
-The next allowed release should deploy the latest CI-verified main commit after Vercel quota allows it, then verify the live CSV download and the two sample queries in a browser.
+- **PDF ingestion and hybrid retrieval:** [PR #9](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/9), merged as `b4371a8`.
+- **Evidence export and search reset:** [PR #10](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/10), merged as `933d709`.
+- **Session-only recent search history:** [PR #11](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/11), merged as `48e545f`. History is limited to five entries in the current Streamlit session.
+- **Retrieval comparison CSV export:** [PR #13](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/13), merged as `1c370c3`. The export includes selected document, search method, result status, rank/score, source, page, citation, passage, and explicit error or no-results rows.
+- **Evidence-first UI copy:** [PR #14](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/14), merged as `2d813bf`. The app describes retrieval as cited evidence and makes AI-generated responses optional.
+
+## Current production status — verified 2026-10-18
+
+- **Deployment:** `dpl_2BjLPgR1w6SRQiHyPzXEmQq2ow84`, Vercel state `READY`, production target.
+- **Deployed source:** main commit `63f3e35db465eb3a1eed95e93ef2449f29ff68b4`.
+- **Homepage:** https://skillcraft-hybrid-rag-pipeline.vercel.app/ returned HTTP 200 and served the Streamlit HTML shell.
+- **Health endpoint:** `/_stcore/health` returned HTTP 200, body `ok`.
+- **Runtime errors:** no grouped runtime-error clusters were returned for the last 24 hours.
+
+The current deployment source includes the merged CSV-export implementation. However, HTTP/health checks are not proof of a complete interactive session: a live browser/WebSocket test of PDF upload, retrieval, and clicking the CSV download has not been completed in this verification pass.
+
+## Source-filter feature — still pending release
+
+[PR #16](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/pull/16) adds filtering of retrieved passages and report/CSV output by selected PDF source. It remains draft and unmerged.
+
+- Exact head commit: `ba7e5a9bf8468b56510be0a7ea83d0ba54fb1a50`.
+- GitHub Actions run [#39135709243](https://github.com/Pappu246/skillcraft-hybrid-rag-pipeline/actions/runs/39135709243) passed; Python compile check passed; `pytest -q` reported **56 passed in 1.62s**. The test covers clearing a cached generated answer when the source filter changes.
+- Vercel preview deployment `dpl_5Sw1HB6mnuWmiKVRQioe598ducFW` is now `READY` for this exact head. The exact preview homepage returned HTTP 200 and `/_stcore/health` returned HTTP 200 with body `ok`.
+- These GET checks do not verify browser/WebSocket interaction with PDF upload, source selection, generated-answer invalidation, or export controls. A direct preview request for the initial feature head was previously rejected with HTTP 402 `payment_required` / `api-deployments-free-per-day`; the Git-linked preview has since reached `READY`. The older READY feature deployment points to a different commit and does not validate this head.
+
+### Release gate for PR #16
+
+Before merge, create an exact-head preview when Vercel permits it, then test a multi-PDF query, source selection, the reset after a new query/history restore/clear, filtered Markdown and CSV exports, and preservation of method-error rows. After merge/deployment, verify the canonical URL and health endpoint again.
+
+## Evaluation limits
+
+The corresponding `Module1.pdf` was not available in the checked workspace. The 34-question figures previously recorded are historical retrieval measurements, not new post-change measurements or generated-answer accuracy scores.
+
+## Release decision
+
+Production is responding and is running main commit `63f3e35`. The source-filter change has passing automated tests and its exact-head preview now responds with HTTP 200 for both the homepage and health endpoint, but it is **not shipped** because real browser/WebSocket interaction has not been verified. Do not bypass Vercel deployment limits, change billing without authorization, or redirect production to an older preview.
