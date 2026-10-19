@@ -1,6 +1,7 @@
 """User-friendly web demo for the SkillCraft Hybrid RAG pipeline."""
 from __future__ import annotations
 
+import base64
 import html
 import inspect
 import logging
@@ -13,6 +14,7 @@ from rag_pipeline.core import MAX_PDF_PAGES, Chunk, SearchResult, generate_answe
 from rag_pipeline.demo import (
     MAX_UPLOAD_BYTES,
     build_comparison_csv,
+    filter_comparison_report_by_source,
     build_index_from_uploads,
     build_sample_index,
     compare_retrievers,
@@ -27,6 +29,17 @@ def _stretch_width(widget) -> dict[str, object]:
     if "width" in inspect.signature(widget).parameters:
         return {"width": "stretch"}
     return {"use_container_width": True}
+
+
+def _download_link_html(label: str, data: str, file_name: str, mime: str) -> str:
+    """Render a self-contained download link without Streamlit's lazy DownloadButton bundle."""
+    encoded = base64.b64encode(data.encode("utf-8")).decode("ascii")
+    safe_mime = html.escape(mime, quote=True)
+    safe_file_name = html.escape(file_name, quote=True)
+    return (
+        f'<a class="download-link" href="data:{safe_mime};base64,{encoded}" '
+        f'download="{safe_file_name}">{html.escape(label)}</a>'
+    )
 
 
 st.set_page_config(
@@ -63,6 +76,12 @@ st.markdown(
       .subtle { color: #bac8df; font-size: .9rem; line-height: 1.6; }
       div[data-testid="stMetric"] { background: #111a2c; border: 1px solid #2a3855;
                                     padding: .8rem; border-radius: 12px; }
+      a.download-link { display: block; box-sizing: border-box; width: 100%;
+                        margin: .6rem 0 .3rem; padding: .6rem .9rem;
+                        border: 1px solid #344b70; border-radius: 10px;
+                        background: #111a2c; color: #9fc4ff !important;
+                        font-weight: 700; text-align: center; text-decoration: none !important; }
+      a.download-link:hover { border-color: #8db8ff; background: #172d50; }
       .stButton > button, .stFormSubmitButton > button { min-height: 2.7rem;
                   border-radius: 10px; font-weight: 700; white-space: normal; }
       .stTextInput input { min-height: 3rem; font-size: 1rem; }
@@ -119,6 +138,7 @@ def _use_history_entry(question: str, source_mode_value: str) -> None:
     st.session_state.retrieval_mode = ""
     st.session_state.answer_text = None
     st.session_state.answer_question = ""
+    st.session_state.retrieval_source_filter = "All sources"
 
 
 def _clear_search_results() -> None:
@@ -127,6 +147,13 @@ def _clear_search_results() -> None:
     st.session_state.retrieval_report = None
     st.session_state.retrieval_question = ""
     st.session_state.retrieval_mode = ""
+    st.session_state.answer_text = None
+    st.session_state.answer_question = ""
+    st.session_state.retrieval_source_filter = "All sources"
+
+
+def _clear_generated_answer_on_source_filter_change() -> None:
+    """Clear a generated response when the visible evidence scope changes."""
     st.session_state.answer_text = None
     st.session_state.answer_question = ""
 
@@ -320,6 +347,7 @@ if submitted:
     else:
         with st.spinner("Searching the document. The first meaning-based search can take a little longer while the model loads..."):
             try:
+                st.session_state.retrieval_source_filter = "All sources"
                 st.session_state.retrieval_report = compare_retrievers(active_index, question, top_k)
                 st.session_state.retrieval_question = question.strip()
                 st.session_state.retrieval_mode = source_mode
@@ -379,15 +407,53 @@ report_is_current = (
 )
 
 if report_is_current:
+    source_names = sorted({
+        str(item.get("source", "")).strip()
+        for method in ("hybrid", "dense", "bm25")
+        for item in report.get(method, [])
+        if isinstance(item, dict) and str(item.get("source", "")).strip()
+    })
+    if len(source_names) > 1:
+        source_filter_options = ["All sources", *[
+            name for name in source_names if name != "All sources"
+        ]]
+        if st.session_state.get("retrieval_source_filter", "All sources") not in source_filter_options:
+            st.session_state.retrieval_source_filter = "All sources"
+        selected_source_filter = st.selectbox(
+            "Limit evidence to source",
+            options=source_filter_options,
+            key="retrieval_source_filter",
+            on_change=_clear_generated_answer_on_source_filter_change,
+            help=(
+                "Filter the visible passages and downloads to one PDF. Retrieval scores and ranks "
+                "are unchanged; an optional generated response uses the filtered evidence."
+            ),
+        )
+        display_report = filter_comparison_report_by_source(
+            report,
+            None if selected_source_filter == "All sources" else selected_source_filter,
+        )
+        export_material_label = (
+            active_source_label
+            if selected_source_filter == "All sources"
+            else selected_source_filter
+        )
+        st.caption(
+            "Source filtering changes the evidence view and downloads, not the original retrieval run."
+        )
+    else:
+        st.session_state.retrieval_source_filter = "All sources"
+        display_report = filter_comparison_report_by_source(report, None)
+        export_material_label = active_source_label
     st.divider()
     st.markdown('<div class="step">Step 2 of 2</div>', unsafe_allow_html=True)
     st.markdown("## Best matching passage")
     st.write("Start with this passage. The citation tells you which source and page to check.")
-    errors = report.get("_errors", {})
+    errors = display_report.get("_errors", {})
     for error_message in dict.fromkeys(errors.values()):
         st.warning(error_message)
-    best_method = next((name for name in ("hybrid", "dense", "bm25") if report.get(name)), None)
-    best_results = report.get(best_method, []) if best_method else []
+    best_method = next((name for name in ("hybrid", "dense", "bm25") if display_report.get(name)), None)
+    best_results = display_report.get(best_method, []) if best_method else []
     if best_results:
         best = best_results[0]
         st.markdown(
@@ -406,31 +472,33 @@ if report_is_current:
 
     export_markdown = _build_evidence_markdown(
         st.session_state.retrieval_question,
-        active_source_label,
-        report,
+        export_material_label,
+        display_report,
     )
-    st.download_button(
-        "Download evidence report (.md)",
-        data=export_markdown,
-        file_name="skillcraft-evidence-report.md",
-        mime="text/markdown",
-        **_stretch_width(st.download_button),
-        help="Export the question, source/page citations, retrieved passages, and any retrieval warnings.",
+    st.markdown(
+        _download_link_html(
+            "Download evidence report (.md)",
+            export_markdown,
+            "skillcraft-evidence-report.md",
+            "text/markdown",
+        ),
+        unsafe_allow_html=True,
     )
     st.caption("The export contains retrieved evidence and citations; it is not a certified answer.")
 
     comparison_csv = build_comparison_csv(
         st.session_state.retrieval_question,
-        active_source_label,
-        report,
+        export_material_label,
+        display_report,
     )
-    st.download_button(
-        "Download comparison CSV (.csv)",
-        data=comparison_csv,
-        file_name="skillcraft-retrieval-comparison.csv",
-        mime="text/csv",
-        **_stretch_width(st.download_button),
-        help="Open in Excel to compare ranks, scores, citations, passages, and method failures.",
+    st.markdown(
+        _download_link_html(
+            "Download comparison CSV (.csv)",
+            comparison_csv,
+            "skillcraft-retrieval-comparison.csv",
+            "text/csv",
+        ),
+        unsafe_allow_html=True,
     )
     st.caption("CSV includes results or an explicit error/no-results row for each retrieval method.")
 
@@ -469,7 +537,7 @@ if report_is_current:
         tabs = st.tabs(["Combined search (recommended)", "Search by meaning", "Search by keywords"])
         for tab, method_name in zip(tabs, ["hybrid", "dense", "bm25"]):
             with tab:
-                results = report.get(method_name, [])
+                results = display_report.get(method_name, [])
                 if not results:
                     st.info(errors.get(method_name, "No passages were returned by this method."))
                 for item in results:
