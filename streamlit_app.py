@@ -1,6 +1,7 @@
 """User-friendly web demo for the SkillCraft Hybrid RAG pipeline."""
 from __future__ import annotations
 
+import base64
 import html
 import inspect
 import logging
@@ -28,6 +29,17 @@ def _stretch_width(widget) -> dict[str, object]:
     if "width" in inspect.signature(widget).parameters:
         return {"width": "stretch"}
     return {"use_container_width": True}
+
+
+def _download_link_html(label: str, data: str, file_name: str, mime: str) -> str:
+    """Render a self-contained download link without Streamlit's lazy DownloadButton bundle."""
+    encoded = base64.b64encode(data.encode("utf-8")).decode("ascii")
+    safe_mime = html.escape(mime, quote=True)
+    safe_file_name = html.escape(file_name, quote=True)
+    return (
+        f'<a class="download-link" href="data:{safe_mime};base64,{encoded}" '
+        f'download="{safe_file_name}">{html.escape(label)}</a>'
+    )
 
 
 st.set_page_config(
@@ -64,6 +76,12 @@ st.markdown(
       .subtle { color: #bac8df; font-size: .9rem; line-height: 1.6; }
       div[data-testid="stMetric"] { background: #111a2c; border: 1px solid #2a3855;
                                     padding: .8rem; border-radius: 12px; }
+      a.download-link { display: block; box-sizing: border-box; width: 100%;
+                        margin: .6rem 0 .3rem; padding: .6rem .9rem;
+                        border: 1px solid #344b70; border-radius: 10px;
+                        background: #111a2c; color: #9fc4ff !important;
+                        font-weight: 700; text-align: center; text-decoration: none !important; }
+      a.download-link:hover { border-color: #8db8ff; background: #172d50; }
       .stButton > button, .stFormSubmitButton > button { min-height: 2.7rem;
                   border-radius: 10px; font-weight: 700; white-space: normal; }
       .stTextInput input { min-height: 3rem; font-size: 1rem; }
@@ -457,13 +475,14 @@ if report_is_current:
         export_material_label,
         display_report,
     )
-    st.download_button(
-        "Download evidence report (.md)",
-        data=export_markdown,
-        file_name="skillcraft-evidence-report.md",
-        mime="text/markdown",
-        **_stretch_width(st.download_button),
-        help="Export the question, source/page citations, retrieved passages, and any retrieval warnings.",
+    st.markdown(
+        _download_link_html(
+            "Download evidence report (.md)",
+            export_markdown,
+            "skillcraft-evidence-report.md",
+            "text/markdown",
+        ),
+        unsafe_allow_html=True,
     )
     st.caption("The export contains retrieved evidence and citations; it is not a certified answer.")
 
@@ -472,13 +491,14 @@ if report_is_current:
         export_material_label,
         display_report,
     )
-    st.download_button(
-        "Download comparison CSV (.csv)",
-        data=comparison_csv,
-        file_name="skillcraft-retrieval-comparison.csv",
-        mime="text/csv",
-        **_stretch_width(st.download_button),
-        help="Open in Excel to compare ranks, scores, citations, passages, and method failures.",
+    st.markdown(
+        _download_link_html(
+            "Download comparison CSV (.csv)",
+            comparison_csv,
+            "skillcraft-retrieval-comparison.csv",
+            "text/csv",
+        ),
+        unsafe_allow_html=True,
     )
     st.caption("CSV includes results or an explicit error/no-results row for each retrieval method.")
 
