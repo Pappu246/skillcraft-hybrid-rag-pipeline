@@ -1,3 +1,5 @@
+import base64
+import re
 from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
@@ -56,9 +58,24 @@ def test_streamlit_query_shows_cited_bm25_fallback_when_dense_search_fails(monke
     assert any("Semantic search is unavailable" in item.value for item in app.warning)
     assert not any(item.label == "Limit evidence to source" for item in app.selectbox)
 
-    downloads = app.get("download_button")
-    assert any(item.label == "Download evidence report (.md)" for item in downloads)
-    assert any(item.label == "Download comparison CSV (.csv)" for item in downloads)
+    rendered_downloads = "\n".join(str(element.value) for element in app.markdown)
+    assert "Download evidence report (.md)" in rendered_downloads
+    assert "Download comparison CSV (.csv)" in rendered_downloads
+
+    markdown_link = re.search(
+        r'href="data:text/markdown;base64,([A-Za-z0-9+/=]+)" download="skillcraft-evidence-report\.md"',
+        rendered_downloads,
+    )
+    csv_link = re.search(
+        r'href="data:text/csv;base64,([A-Za-z0-9+/=]+)" download="skillcraft-retrieval-comparison\.csv"',
+        rendered_downloads,
+    )
+    assert markdown_link is not None
+    assert csv_link is not None
+    markdown_export = base64.b64decode(markdown_link.group(1)).decode("utf-8")
+    csv_export = base64.b64decode(csv_link.group(1)).decode("utf-8")
+    assert "[Guide.pdf, p. 4]" in markdown_export
+    assert "Guide.pdf" in csv_export
 
     recent_button = next(item for item in app.button if item.label.startswith("Use recent query:"))
     recent_button.click().run()
